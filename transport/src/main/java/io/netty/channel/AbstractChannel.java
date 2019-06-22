@@ -703,7 +703,9 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             final boolean wasActive = isActive();
             final ChannelOutboundBuffer outboundBuffer = this.outboundBuffer;
-            this.outboundBuffer = null; // Disallow adding any messages and flushes to outboundBuffer.
+            // 将发送队列清空，不再允许发送新的消息
+            // Disallow adding any messages and flushes to outboundBuffer.
+            this.outboundBuffer = null;
             Executor closeExecutor = prepareToClose();
             if (closeExecutor != null) {
                 closeExecutor.execute(new Runnable() {
@@ -731,6 +733,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             } else {
                 try {
                     // Close the channel and fail the queued messages in all cases.
+                    // 关闭链路
                     doClose0(promise);
                 } finally {
                     if (outboundBuffer != null) {
@@ -740,6 +743,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     }
                 }
                 if (inFlush0) {
+                    // 判断当前链路是否有消息正在发送，如果有则将SelectionKey的去注册操作封装成Task放到eventLoop中稍后再执行
                     invokeLater(new Runnable() {
                         @Override
                         public void run() {
@@ -747,6 +751,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                         }
                     });
                 } else {
+                    // 触发链路关闭通知事件
                     fireChannelInactiveAndDeregister(wasActive);
                 }
             }
@@ -1013,6 +1018,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 //         -> handlerA.channelInactive() - (2) another inbound handler method called while in (1) yet
                 //
                 // which means the execution of two inbound handler methods of the same handler overlap undesirably.
+                // 将SelectionKey的去注册操作封装成Task放到eventLoop中稍后再执行
                 eventLoop().execute(task);
             } catch (RejectedExecutionException e) {
                 logger.warn("Can't invoke task later as EventLoop rejected it", e);

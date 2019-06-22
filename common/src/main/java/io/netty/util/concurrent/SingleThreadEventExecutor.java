@@ -74,6 +74,11 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
     };
 
+    /**
+     * 采用AtomicIntegerFieldUpdater的compareAndSet对新老线程状态进行修改，
+     * 如果在修改当前线程时发现状态已经被别的线程修改过，则继续自旋，知道发现线程已经处于ST_SHUTTING_DOWN、ST_SHUTDOWN、ST_TERMINATED状态，
+     * 或者自己的更新操作成功，才会退出循环。
+     */
     private static final AtomicIntegerFieldUpdater<SingleThreadEventExecutor> STATE_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(SingleThreadEventExecutor.class, "state");
     private static final AtomicReferenceFieldUpdater<SingleThreadEventExecutor, ThreadProperties> PROPERTIES_UPDATER =
@@ -549,6 +554,17 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         return ran;
     }
 
+    /**
+     * NioEventLoop线程优雅退出方法
+     * 首先要修改线程状态为正在关闭状态，修改线程状态位时要对并发调用做保护，因为这个方法可能由NioEventLoop线程发起，也可能由多个应用线程并发执行。
+     * 最简单的策略就是枷锁（Netty5）或者采用原子类加自旋的方式避免加锁（Netty4）
+     * @param quietPeriod the quiet period as described in the documentation
+     * @param timeout     the maximum amount of time to wait until the executor is {@linkplain #shutdown()}
+     *                    regardless if a task was submitted during the quiet period
+     * @param unit        the unit of {@code quietPeriod} and {@code timeout}
+     *
+     * @return
+     */
     @Override
     public Future<?> shutdownGracefully(long quietPeriod, long timeout, TimeUnit unit) {
         if (quietPeriod < 0) {
@@ -569,6 +585,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         boolean inEventLoop = inEventLoop();
         boolean wakeup;
         int oldState;
+        // 自旋
         for (;;) {
             if (isShuttingDown()) {
                 return terminationFuture();
@@ -589,6 +606,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                         wakeup = false;
                 }
             }
+            // 对新老线程状态进行修改
             if (STATE_UPDATER.compareAndSet(this, oldState, newState)) {
                 break;
             }

@@ -52,6 +52,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * {@link SingleThreadEventLoop} implementation which register the {@link Channel}'s to a
  * {@link Selector} and so does the multi-plexing of these in the event loop.
  *
+ * 非守护线程，
  */
 public final class NioEventLoop extends SingleThreadEventLoop {
 
@@ -505,6 +506,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             }
             // Always handle shutdown even if the loop processing threw an exception.
             try {
+                // 在父类SingleThreadEventExecutor中完成状态修改之后，剩下的操作主要在NioEventLoop中进行
                 if (isShuttingDown()) {
                     closeAll();
                     if (confirmShutdown()) {
@@ -710,6 +712,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    /**
+     * 把注册在Selector上的所有Channel都关闭
+     */
     private void closeAll() {
         selectAgain();
         Set<SelectionKey> keys = selector.keys();
@@ -727,6 +732,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
 
         for (AbstractNioChannel ch: channels) {
+            // 循环调用Channel unsafe的close方法
             ch.unsafe().close(ch.unsafe().voidPromise());
         }
     }
