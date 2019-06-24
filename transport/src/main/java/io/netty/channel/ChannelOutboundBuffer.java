@@ -664,6 +664,9 @@ public final class ChannelOutboundBuffer {
         }
     }
 
+    /**
+     * 释放发送队列中所有尚未完成发送的ByteBuf（关闭之前没有被flushed的message），等到GC
+     */
     void close(final Throwable cause, final boolean allowChannelOpen) {
         if (inFail) {
             channel.eventLoop().execute(new Runnable() {

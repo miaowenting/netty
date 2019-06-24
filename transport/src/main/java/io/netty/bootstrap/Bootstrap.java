@@ -53,6 +53,9 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
 
     private static final AddressResolverGroup<?> DEFAULT_RESOLVER = DefaultAddressResolverGroup.INSTANCE;
 
+    /**
+     * 配置项
+     */
     private final BootstrapConfig config = new BootstrapConfig(this);
 
     @SuppressWarnings("unchecked")

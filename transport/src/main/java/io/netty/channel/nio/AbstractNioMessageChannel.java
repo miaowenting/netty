@@ -57,12 +57,16 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
 
     private final class NioMessageUnsafe extends AbstractNioUnsafe {
 
+        /**
+         * 可以是SocketChannel对象的List集合
+         */
         private final List<Object> readBuf = new ArrayList<Object>();
 
         @Override
         public void read() {
             assert eventLoop().inEventLoop();
             final ChannelConfig config = config();
+            // 如果是NioServerSocketChannel,则获取其对应的pipeline
             final ChannelPipeline pipeline = pipeline();
             final RecvByteBufAllocator.Handle allocHandle = unsafe().recvBufAllocHandle();
             allocHandle.reset(config);
@@ -88,12 +92,14 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                 }
 
                 int size = readBuf.size();
-                for (int i = 0; i < size; i ++) {
+                for (int i = 0; i < size; i++) {
                     readPending = false;
+                    // 调用pipeline中所有handler的channelRead方法
                     pipeline.fireChannelRead(readBuf.get(i));
                 }
                 readBuf.clear();
                 allocHandle.readComplete();
+                // 处理channel read complete
                 pipeline.fireChannelReadComplete();
 
                 if (exception != null) {
@@ -127,7 +133,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
         final SelectionKey key = selectionKey();
         final int interestOps = key.interestOps();
 
-        for (;;) {
+        for (; ; ) {
             Object msg = in.current();
             if (msg == null) {
                 // Wrote all messages.

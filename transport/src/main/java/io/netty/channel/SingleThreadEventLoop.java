@@ -77,6 +77,7 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
     @Override
     public ChannelFuture register(final ChannelPromise promise) {
         ObjectUtil.checkNotNull(promise, "promise");
+        // unsafe执行的都是实际的操作
         promise.channel().unsafe().register(this, promise);
         return promise;
     }

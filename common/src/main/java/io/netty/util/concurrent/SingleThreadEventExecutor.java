@@ -347,6 +347,8 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     }
 
     /**
+     * 执行尚在TaskQueue中排队的Task
+     *
      * Poll all tasks from the task queue and run them via {@link Runnable#run()} method.
      *
      * @return {@code true} if and only if at least one task was run
@@ -358,6 +360,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
         do {
             fetchedAll = fetchFromScheduledTaskQueue();
+            // 执行
             if (runAllTasksFrom(taskQueue)) {
                 ranAtLeastOne = true;
             }
@@ -378,6 +381,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
      * @return {@code true} if at least one task was executed.
      */
     protected final boolean runAllTasksFrom(Queue<Runnable> taskQueue) {
+        // 从队列中一一取出任务执行
         Runnable task = pollTaskFrom(taskQueue);
         if (task == null) {
             return false;
@@ -530,6 +534,9 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
     }
 
+    /**
+     * 执行注册到NioEventLoop中的ShutdownHooks
+     */
     private boolean runShutdownHooks() {
         boolean ran = false;
         // Note shutdown hooks can add / remove shutdown hooks.
@@ -726,10 +733,12 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
         final long nanoTime = ScheduledFutureTask.nanoTime();
 
+        // 判断是否到达优雅退出的指定超时时间，如果达到或者过了超时时间，则立即退出
         if (isShutdown() || nanoTime - gracefulShutdownStartTime > gracefulShutdownTimeout) {
             return true;
         }
 
+        // 如果没有到达指定的超时时间，暂时不退出，每隔100ms检测一下是否有新的任务加入，有新任务则继续执行
         if (nanoTime - lastExecutionTime <= gracefulShutdownQuietPeriod) {
             // Check if any tasks were added to the queue every 100ms.
             // TODO: Change the behavior of takeTask() so that it returns on timeout.
@@ -745,6 +754,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
         // No tasks were added for last quiet period - hopefully safe to shut down.
         // (Hopefully because we really cannot make a guarantee that there will be no execute() calls by a user.)
+        // 当返回true时，NioEventLoop线程正式退出，Netty的优雅退出完成
         return true;
     }
 
@@ -770,8 +780,10 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
 
         boolean inEventLoop = inEventLoop();
+        // 将任务添加到taskQueue中
         addTask(task);
         if (!inEventLoop) {
+            // 开启线程
             startThread();
             if (isShutdown()) {
                 boolean reject = false;
@@ -911,9 +923,11 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     private void doStartThread() {
         assert thread == null;
+        // 开始执行线程池
         executor.execute(new Runnable() {
             @Override
             public void run() {
+                // 当前线程
                 thread = Thread.currentThread();
                 if (interrupted) {
                     thread.interrupt();
