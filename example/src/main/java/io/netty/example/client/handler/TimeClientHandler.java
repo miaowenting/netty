@@ -1,5 +1,6 @@
-package io.netty.example.client;
+package io.netty.example.client.handler;
 
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import io.netty.buffer.ByteBuf;
@@ -20,6 +21,9 @@ public class TimeClientHandler extends ChannelInboundHandlerAdapter {
         firstMessage.writeBytes(req);
     }
 
+    /**
+     * 当客户端和服务端TCP链路建立成功之后，Netty的NIO线程会调用channelActive方法
+     */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         // 与服务端建立连接后
@@ -29,6 +33,9 @@ public class TimeClientHandler extends ChannelInboundHandlerAdapter {
         ctx.writeAndFlush(firstMessage);
     }
 
+    /**
+     * 当服务端返回应答消息时，channelRead方法被调用
+     */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg)
             throws Exception {
@@ -45,9 +52,9 @@ public class TimeClientHandler extends ChannelInboundHandlerAdapter {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
             throws Exception {
         System.out.println("client exceptionCaught..");
-        // 释放资源
         logger.warning("Unexpected exception from downstream:"
                 + cause.getMessage());
+        // 释放客户端资源
         ctx.close();
     }
 

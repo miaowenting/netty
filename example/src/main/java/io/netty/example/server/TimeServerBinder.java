@@ -5,21 +5,23 @@ import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.example.server.handler.TimeServerTcpStickyExceptionHandler;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 
 import java.io.*;
 import java.util.Enumeration;
+import java.util.LinkedList;
 import java.util.Properties;
 
-
 /**
+ * Netty时间服务器服务端
  * Netty是一个异步非阻塞的通信框架，所有的I/O操作都是异步的，
  * 但是为了方便使用，例如在有些场景下应用需要同步等待一些I/O操作的结果，所以提供了ChannelFuture
  */
-public class TimeServer {
+public class TimeServerBinder {
 
-    public void bind(int port) throws Exception {
+    public static void bind(int port, final LinkedList<ChannelHandler> channelHandlers) throws Exception {
         // boss group 服务端的TCP连接接入线程池
         final EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         // worker group 处理客户端网络I/O读写的工作线程池 默认是处理器的2倍
@@ -41,7 +43,10 @@ public class TimeServer {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
                             // 当新建的与客户端通信的NioSocketChannel被注册到EventLoop成功时，该方法会被调用，用于添加业务Handler
-                            socketChannel.pipeline().addLast(new ChildChannelHandler());
+                            System.out.println("server initChannel..");
+                            for (ChannelHandler channelHandler : channelHandlers) {
+                                socketChannel.pipeline().addLast(channelHandler);
+                            }
                         }
                     });
 
@@ -74,66 +79,5 @@ public class TimeServer {
         }
     }
 
-    private class ChildChannelHandler extends ChannelInitializer<SocketChannel> {
-        @Override
-        protected void initChannel(SocketChannel arg0) throws Exception {
-            System.out.println("server initChannel..");
-            arg0.pipeline().addLast(new TimeServerHandler());
-        }
-    }
 
-    public static void main(String[] args) throws Exception {
-        int port = 8091;
-        if (args != null && args.length > 0) {
-            for (String arg : args) {
-                System.out.println("arg -> " + arg);
-                if (arg.contains("spring.config.location")) {
-                    String configFilePath = arg.split("=")[1];
-                    System.out.println(configFilePath);
-                    getProperties(configFilePath);
-                    String sparkConfProps = getProperty(configFilePath, "spark.sql.conf.properties");
-                    System.out.println(sparkConfProps);
-                }
-            }
-            try {
-                port = Integer.valueOf(args[0]);
-            } catch (NumberFormatException e) {
-
-            }
-        }
-
-        new TimeServer().bind(port);
-    }
-
-    private static Properties getProperties(String filePath) {
-        Properties props = new Properties();
-        try {
-            // 通过输入缓冲流进行读取配置文件
-            InputStream InputStream = new BufferedInputStream(new FileInputStream(new File(filePath)));
-            // 加载输入流
-            props.load(InputStream);
-            printAllProperty(props);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return props;
-    }
-
-    private static String getProperty(String filePath, String key) {
-        Properties props = getProperties(filePath);
-        String value = (String) props.get(key);
-        return value;
-    }
-
-
-    private static void printAllProperty(Properties props) {
-        @SuppressWarnings("rawtypes")
-        Enumeration en = props.propertyNames();
-        while (en.hasMoreElements()) {
-            String key = (String) en.nextElement();
-            String value = props.getProperty(key);
-            System.out.println(key + " : " + value);
-        }
-    }
 }

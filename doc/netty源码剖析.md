@@ -1,6 +1,7 @@
 
 基于netty源码版本 4.1
 
+[TOC]
 
 ### 1 Selector
 
@@ -79,14 +80,18 @@
 ![avatar](image/bind流程图.png)
 
 
-#### 3.3 客户端接入流程
+### 4 客户端接入流程
 
 
 ![avatar](image/客户端接入流程图.png)
 
+### 5 NioEventLoop读取channel数据流程
 
 
-### 4 如何防止Netty服务端意外退出
+![avatar](image/NioEventLoop读取channel中数据时序图.png)
+
+
+### 6 如何防止Netty服务端意外退出
 
 - 方法1 同步
 
@@ -247,10 +252,10 @@ public class TimeServer {
 ```
 
 
-### 5 Netty中的优雅退出机制
+### 7 Netty中的优雅退出机制
 
 
-#### 5.1 Java优雅退出机制
+#### 7.1 Java优雅退出机制
 
 - 程序正常退出
 
@@ -390,7 +395,7 @@ Process finished with exit code 1
 ```
 
 
-#### 5.2 Netty优雅退出机制
+#### 7.2 Netty优雅退出机制
 
 - netty优雅退出涉及的预处理操作和资源释放
 
@@ -415,6 +420,48 @@ Process finished with exit code 1
 因此，应用程序的正确性不能完全依赖Netty的优雅退出机制，需要在应用层面做容错设计和处理。例如，服务端在返回响应之前关闭了，导致响应没有发送给客户端，这可能会触发客户端IO异常，或者超时异常，客户端需要采用Failover重试其他可用的服务端，而不能寄希望于服务端永远正确，Netty优雅退出更重要的是保证资源、句柄、线程的快速释放，以及相关对象的清理。
 
 ```
+
+### 8 TCP粘包/拆包问题
+
+#### 8.1 TCP粘包/拆包的基础知识
+
+TCP是一个"流"协议，在业务上认为，一个完整的包可能会被拆分成多个包进行发送，也有可能把多个小的包封装成一个大的数据包发送，这就是所谓的TCP粘包/拆包问题。
+
+![avatar](image/TCP粘包拆包问题.png)
+
+由于底层的TCP协议无法理解上层的业务数据，所以在底层不能保证数据包不被拆分和重组，这个问题只能通过上层的应用协议栈设计来解决：
+
+- 消息定长，不够补空格
+- 在包尾增加回车换行符进行分割
+- 将消息分为消息头和消息体，消息头中包含消息总长度或消息体长度的字段
+- 更复杂的应用层协议
+
+#### 8.2 没考虑TCP粘包/拆包的问题案例
+
+TCP粘包导致的读半包问题
+查看example模块中的 TimeServerTcpStickyException 和 TimeClientTcpStickyException:
+
+服务端只收到2条消息，说明客户端发送的消息发生了TCP粘包：
+![avatar](image/服务端只收到2条消息.png)
+
+服务端只收到2条消息，因此只发送2条应答，但实际上客户端值收到一条包含2个"BAD ORDER"的消息，说明服务端返回的应答消息也发生了TCP粘包：
+![avatar](image/客户端也只收到一条应答消息.png)
+
+#### 8.3 使用Netty解决读半包问题
+
+为了解决TCP粘包/拆包导致的问题，Netty默认提供了多种编解码器用于处理半包。
+
+查看example模块中的 TimeServerFixTcpStickyException 和 TimeClientFixTcpStickyException:
+
+分别在服务端和客户端添加 LineBasedFrameDecoder 和 StringDecoder 解决问题。
+
+服务端正常收到客户端的100次请求：
+![avatar](image/服务端正常收到客户端的100次请求.png)
+
+客户端正常收到服务端的100次应答消息：
+![avatar](image/客户端正常收到服务端的100次应答消息.png)
+
+
 
 
 
