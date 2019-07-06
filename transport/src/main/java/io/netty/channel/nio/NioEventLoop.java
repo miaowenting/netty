@@ -426,9 +426,11 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     /**
      * EventLoop的事件循环
+     * 处理入口
      */
     @Override
     protected void run() {
+        // 不断执行for循环
         for (;;) {
             try {
                 try {
