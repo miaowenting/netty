@@ -135,7 +135,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
         final SelectionKey key = selectionKey();
         final int interestOps = key.interestOps();
 
-        for (; ; ) {
+        for (; ;) {
             Object msg = in.current();
             if (msg == null) {
                 // Wrote all messages.

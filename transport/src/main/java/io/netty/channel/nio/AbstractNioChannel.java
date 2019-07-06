@@ -381,7 +381,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     @Override
     protected void doRegister() throws Exception {
         boolean selected = false;
-        for (; ; ) {
+        for (; ;) {
             try {
                 // 将通道注册到选择器，并返回SelectionKey
                 // 注意，此时op为0，channel还不能监听读写事件

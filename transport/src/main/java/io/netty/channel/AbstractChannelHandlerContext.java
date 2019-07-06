@@ -942,7 +942,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     }
 
     final boolean setAddComplete() {
-        for (; ; ) {
+        for (; ;) {
             int oldState = handlerState;
             if (oldState == REMOVE_COMPLETE) {
                 return false;
