@@ -874,6 +874,9 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         public final void write(Object msg, ChannelPromise promise) {
             assertEventLoop();
 
+            /**
+             * 获取Channel中关联的ChannelOutboundBuffer
+             */
             ChannelOutboundBuffer outboundBuffer = this.outboundBuffer;
             if (outboundBuffer == null) {
                 // If the outboundBuffer is null we know the channel was closed and so
@@ -899,6 +902,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 return;
             }
 
+            // 将ByteBuf msg存入ChannelOutboundBuffer中
+            // 不管是调用ctx.write还是channel.write，都是将数据放入ChannelOutboundBuffer。当调用flush时，才统一写入Socket
             outboundBuffer.addMessage(msg, size, promise);
         }
 
@@ -911,7 +916,9 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 return;
             }
 
+            // 确定要入socket的数据，从outboundBuffer总字节数减去将要写的数据的字节数
             outboundBuffer.addFlush();
+
             flush0();
         }
 
@@ -919,9 +926,11 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         protected void flush0() {
             if (inFlush0) {
                 // Avoid re-entrance
+                // 防止重复调用
                 return;
             }
 
+            // 如果没有数据要flush就返回
             final ChannelOutboundBuffer outboundBuffer = this.outboundBuffer;
             if (outboundBuffer == null || outboundBuffer.isEmpty()) {
                 return;
@@ -931,11 +940,14 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             // Mark all pending write requests as failure if the channel is inactive.
             if (!isActive()) {
+                // 当前Channel处于inActive状态，标识所有等待写请求为失败
                 try {
                     if (isOpen()) {
+                        // 通道还是打开的，返回以下状态异常且会回调注册到promise上的listeners
                         outboundBuffer.failFlushed(new NotYetConnectedException(), true);
                     } else {
                         // Do not trigger channelWritabilityChanged because the channel is closed already.
+                        // 通道已经关闭，返回以下状态异常且不会回调注册到promise上的listeners
                         outboundBuffer.failFlushed(newClosedChannelException(initialCloseCause), false);
                     }
                 } finally {
@@ -945,6 +957,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
 
             try {
+                // 将Channel输出缓冲区的数据通过Socket传给对端
                 doWrite(outboundBuffer);
             } catch (Throwable t) {
                 if (t instanceof IOException && config().isAutoClose()) {

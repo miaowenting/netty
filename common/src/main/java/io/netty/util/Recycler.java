@@ -34,7 +34,11 @@ import static java.lang.Math.min;
 /**
  * Light-weight object pool based on a thread-local stack.
  *
+ * Netty实现的基于线程局部堆栈的轻量级对象池，不是每次添加数据都要new 一个Entry对象，而是通过对象池技术复用，
+ * 只是取出来之后将数据以及promise赋值给Entry，这样做的目的必然降低开销。
+ *
  * @param <T> the type of the pooled object
+ *
  */
 public abstract class Recycler<T> {
 
