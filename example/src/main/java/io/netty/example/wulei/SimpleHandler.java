@@ -6,6 +6,12 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 
 import java.nio.charset.Charset;
 
+/**
+ * 测试类
+ * netty-server's handler
+ * read data
+ * @author wulei
+ */
 public class SimpleHandler extends ChannelInboundHandlerAdapter{
 
 	@Override

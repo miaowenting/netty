@@ -141,6 +141,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             throw new NullPointerException("selectStrategy");
         }
         provider = selectorProvider;
+        //创建一个selector的包装对象
         final SelectorTuple selectorTuple = openSelector();
         selector = selectorTuple.selector;
         unwrappedSelector = selectorTuple.unwrappedSelector;
@@ -148,7 +149,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     private static final class SelectorTuple {
+        //原生的未包装的selector
         final Selector unwrappedSelector;
+        //优化后的selector
         final Selector selector;
 
         SelectorTuple(Selector unwrappedSelector) {

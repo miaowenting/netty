@@ -11,6 +11,11 @@ import io.netty.handler.codec.DelimiterBasedFrameDecoder;
 import io.netty.handler.codec.Delimiters;
 import io.netty.handler.codec.string.StringEncoder;
 
+/**
+ * 测试类
+ * netty-client
+ * @author wulei
+ */
 public class NettyClient {
 	
 	public static void main(String[] args) {

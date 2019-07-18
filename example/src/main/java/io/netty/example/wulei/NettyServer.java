@@ -11,6 +11,11 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.DelimiterBasedFrameDecoder;
 import io.netty.handler.codec.Delimiters;
 
+/**
+ * 测试类
+ * netty-server
+ * @author wulei
+ */
 public class NettyServer {
 	
 	public static void main(String[] args) {
