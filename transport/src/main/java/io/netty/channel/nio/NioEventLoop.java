@@ -429,9 +429,11 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     /**
      * EventLoop的事件循环
+     * 处理入口
      */
     @Override
     protected void run() {
+        // 不断执行for循环
         for (;;) {
             try {
                 try {
@@ -622,6 +624,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             // See https://github.com/netty/netty/issues/2363
             selectedKeys.keys[i] = null;
 
+            // 拿到注册在selector上的channel
             final Object a = k.attachment();
 
             if (a instanceof AbstractNioChannel) {
@@ -687,6 +690,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             // 处理OP_WRITE事件
             if ((readyOps & SelectionKey.OP_WRITE) != 0) {
                 // Call forceFlush which will also take care of clear the OP_WRITE once there is nothing left to write
+                // 写半包处理
                 ch.unsafe().forceFlush();
             }
 

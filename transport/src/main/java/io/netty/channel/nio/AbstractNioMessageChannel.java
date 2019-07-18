@@ -31,6 +31,8 @@ import java.util.List;
 
 /**
  * {@link AbstractNioChannel} base class for {@link Channel}s that operate on messages.
+ *
+ * NioServerSocketChannel
  */
 public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
     boolean inputShutdown;
@@ -133,7 +135,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
         final SelectionKey key = selectionKey();
         final int interestOps = key.interestOps();
 
-        for (; ; ) {
+        for (; ;) {
             Object msg = in.current();
             if (msg == null) {
                 // Wrote all messages.
