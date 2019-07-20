@@ -2,7 +2,7 @@
 基于netty源码版本 4.1
 代码install不通过:
 安装一些工具 brew install autoconf automake libtool
-去除 maven-checkstyle-plugin
+去除 maven-checkstyle-pluglin
 
 
 [TOC]
