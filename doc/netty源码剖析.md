@@ -5,8 +5,6 @@
 去除 maven-checkstyle-pluglin
 
 
-
-
 [TOC]
 
 ### 1 Selector
