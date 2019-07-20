@@ -21,6 +21,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 /**
+ * // 来自PoolChunk的PageRun / PoolSubpage分配算法的描述
  * Description of algorithm for PageRun/PoolSubpage allocation from PoolChunk
  *
  * Notation: The following terms are important to understand the code
