@@ -708,6 +708,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     private static void processSelectedKey(SelectionKey k, NioTask<SelectableChannel> task) {
         int state = 0;
         try {
+            // TODO 老大们，实现类在哪里？
             task.channelReady(k.channel(), k);
             state = 1;
         } catch (Exception e) {
@@ -773,6 +774,8 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         return unwrappedSelector;
     }
 
+    // selectNow() 方法会检查当前是否有就绪的 IO 事件, 如果有, 则返回就绪 IO 事件的个数;
+    // 如果没有, 则返回0. 注意, selectNow() 是立即返回的, 不会阻塞当前线程
     int selectNow() throws IOException {
         try {
             return selector.selectNow();
@@ -783,7 +786,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             }
         }
     }
-
+    // 很好理解: 当 taskQueue 中没有任务时, 那么 Netty 可以阻塞地等待 IO 就绪事件;
+    // 而当 taskQueue 中有任务时, 我们自然地希望所提交的任务可以尽快地执行,
+    // 因此 Netty 会调用非阻塞的 selectNow() 方法, 以保证 taskQueue 中的任务尽快可以执行.
     private void select(boolean oldWakenUp) throws IOException {
         Selector selector = this.selector;
         try {
