@@ -29,7 +29,9 @@ import java.util.Deque;
  * > chunk - a chunk is a collection of pages
  * > in this code chunkSize = 2^{maxOrder} * pageSize
  *
- * // 首先，我们会分配一个size = chunkSize的字节数组
+ * // 首先，我们会分配一个size = chunkSize的字节数组，每当需要创建给定大小的ByteBuf时，
+ * 我们从数据第一个位置开始搜索，判断在字节数组中有足够的空白空间来容纳请求的大小，并且返回一个偏移量
+ * （以后这段数据空间就只会由这个ByteBuf使用了）
  * To begin we allocate a byte array of size = chunkSize
  * Whenever a ByteBuf of given size needs to be created we search for the first position
  * in the byte array that has enough empty space to accommodate the requested size and
