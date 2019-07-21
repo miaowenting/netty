@@ -19,8 +19,14 @@ package io.netty.buffer;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Deque;
+/**
+ * 吴磊感言：多年之前，从C内存的手动管理上升到java的自动GC，是历史的巨大进步。然而多年之后，netty的内存实现又曲线的回到了手动管理模式，
+ * 正印证了马克思哲学观：社会总是在螺旋式前进的，没有永远的最好。的确，就内存管理而言，GC给程序员带来的价值是不言而喻的，
+ * 不仅大大的降低了程序员的负担，而且也极大的减少了内存管理带来的Crash困扰，不过也有很多情况，可能手动的内存管理更为合适。
+ */
 
 /**
+ * // 来自PoolChunk的PageRun / PoolSubpage分配算法的描述
  * Description of algorithm for PageRun/PoolSubpage allocation from PoolChunk
  *
  * Notation: The following terms are important to understand the code
@@ -28,6 +34,9 @@ import java.util.Deque;
  * > chunk - a chunk is a collection of pages
  * > in this code chunkSize = 2^{maxOrder} * pageSize
  *
+ * // 首先，我们会分配一个size = chunkSize的字节数组，每当需要创建给定大小的ByteBuf时，
+ * 我们从数据第一个位置开始搜索，判断在字节数组中有足够的空白空间来容纳请求的大小，并且返回一个偏移量
+ * （以后这段数据空间就只会由这个ByteBuf使用了）
  * To begin we allocate a byte array of size = chunkSize
  * Whenever a ByteBuf of given size needs to be created we search for the first position
  * in the byte array that has enough empty space to accommodate the requested size and

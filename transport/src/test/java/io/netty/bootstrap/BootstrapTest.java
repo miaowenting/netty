@@ -82,7 +82,7 @@ public class BootstrapTest {
         List<Future<?>> bindFutures = new ArrayList<Future<?>>();
 
         // Try to bind from each other.
-        for (int i = 0; i < 1024; i ++) {
+        for (int i = 0; i < 1023; i ++) {
             bindFutures.add(groupA.next().submit(new Runnable() {
                 @Override
                 public void run() {
@@ -103,6 +103,10 @@ public class BootstrapTest {
         }
     }
 
+    /**
+     *
+     * @throws Exception
+     */
     @Test(timeout = 10000)
     public void testConnectDeadLock() throws Exception {
         final Bootstrap bootstrapA = new Bootstrap();

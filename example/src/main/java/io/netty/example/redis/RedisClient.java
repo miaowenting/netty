@@ -34,14 +34,14 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
 /**
- * Simple Redis client that demonstrates Redis commands against a Redis server.
+ * Simple Redis client that demonstrates Redis commands against a Redis server .
  */
 public class RedisClient {
     private static final String HOST = System.getProperty("host", "127.0.0.1");
     private static final int PORT = Integer.parseInt(System.getProperty("port", "6379"));
 
     public static void main(String[] args) throws Exception {
-        EventLoopGroup group = new NioEventLoopGroup();
+        EventLoopGroup  group = new NioEventLoopGroup();
         try {
             Bootstrap b = new Bootstrap();
             b.group(group)
@@ -62,7 +62,7 @@ public class RedisClient {
             Channel ch = b.connect(HOST, PORT).sync().channel();
 
             // Read commands from the stdin.
-            System.out.println("Enter Redis commands (quit to end)");
+            System.out.println("Enter Redis commands (quit to end).");
             ChannelFuture lastWriteFuture = null;
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
             for (;;) {
@@ -71,7 +71,8 @@ public class RedisClient {
                 if (line == null || "quit".equalsIgnoreCase(line)) { // EOF or "quit"
                     ch.close().sync();
                     break;
-                } else if (line.isEmpty()) { // skip `enter` or `enter` with spaces.
+                    // skip `enter` or `enter` with spaces.
+                } else if (line.isEmpty()) {
                     continue;
                 }
                 // Sends the received line to the server.
