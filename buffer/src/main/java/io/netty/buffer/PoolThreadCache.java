@@ -72,8 +72,10 @@ final class PoolThreadCache {
         this.heapArena = heapArena;
         this.directArena = directArena;
         if (directArena != null) {
+            // tiny块个数:32 计算方式:512 >>> 4(tiny块size为512)
             tinySubPageDirectCaches = createSubPageCaches(
                     tinyCacheSize, PoolArena.numTinySubpagePools, SizeClass.Tiny);
+            // small块个数:4 计算方式:small块的个数有pageSize来决定，它的计算公式是：pageShifts - 9(small块size为256)
             smallSubPageDirectCaches = createSubPageCaches(
                     smallCacheSize, directArena.numSmallSubpagePools, SizeClass.Small);
 
@@ -81,6 +83,7 @@ final class PoolThreadCache {
             normalDirectCaches = createNormalCaches(
                     normalCacheSize, maxCachedBufferCapacity, directArena);
 
+            // 每次将Arena分配给PoolThreadCache，numThreadCaches都会加一
             directArena.numThreadCaches.getAndIncrement();
         } else {
             // No directArea is configured so just null out all caches
@@ -366,6 +369,12 @@ final class PoolThreadCache {
         }
     }
 
+    /**
+     * MemoryRegionCache内部实现是一个队列，当PoolThreadCache获取到对应类型的MemoryRegionCache(tiny/small/normal)进行分配的时候
+     * 会从队列中Poll一个元素，既Entry(Entry与一个Chunk关联)，那么从队列中获取成功之后就可以直接使用其分配。
+     * 在释放的时候会将该Chunk加入到该队列中，下次就可以从队列中使用
+     * @param <T>
+     */
     private abstract static class MemoryRegionCache<T> {
         private final int size;
         private final Queue<Entry<T>> queue;
@@ -374,6 +383,11 @@ final class PoolThreadCache {
 
         MemoryRegionCache(int size, SizeClass sizeClass) {
             this.size = MathUtil.safeFindNextPositivePowerOfTwo(size);
+            /**
+             * 在构造方法中主要是对成员变量进行初始化，这里使用了一个MPSC(Multiple Producer Single Consumer)队列即多个生产者单一消费者队列，
+             * 之所以使用这种类型的队列是因为:ByteBuf的分配和释放可能在不同的线程中，这里的多生产者即多个不同的释放线程，
+             * 这样才能保证多个释放线程同时释放ByteBuf时所占空间正确添加到队列中！
+             */
             queue = PlatformDependent.newFixedMpscQueue(this.size);
             this.sizeClass = sizeClass;
         }
@@ -390,8 +404,11 @@ final class PoolThreadCache {
         @SuppressWarnings("unchecked")
         public final boolean add(PoolChunk<T> chunk, ByteBuffer nioBuffer, long handle) {
             Entry<T> entry = newEntry(chunk, nioBuffer, handle);
+            // 将entry放入队列中，当超过8时会失败
             boolean queued = queue.offer(entry);
             if (!queued) {
+                // 队列已满不缓存
+                // 立即回收entry对象进行下一次分配
                 // If it was not possible to cache the chunk, immediately recycle the entry
                 entry.recycle();
             }

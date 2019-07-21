@@ -249,6 +249,8 @@ abstract class PoolArena<T> implements PoolArenaMetric {
              * Synchronize on the head. This is needed as {@link PoolChunk#allocateSubpage(int)} and
              * {@link PoolChunk#free(long)} may modify the doubly linked list as well.
              */
+            // 走到这里说明尝试在poolThreadCache中分配失败
+            // 开始尝试借用tinySubpagePools或smallSubpagePools缓存中的Page来进行分配
             synchronized (head) {
                 final PoolSubpage<T> s = head.next;
                 if (s != head) {
@@ -268,15 +270,18 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             return;
         }
         if (normCapacity <= chunkSize) {
+            // 尝试从本地线程allocateNormal方法进行内存分配
             if (cache.allocateNormal(this, buf, reqCapacity, normCapacity)) {
                 // was able to allocate out of the cache so move on
                 return;
             }
+            // 使用全局allocateNormal进行分配内存
             synchronized (this) {
                 allocateNormal(buf, reqCapacity, normCapacity);
                 ++allocationsNormal;
             }
         } else {
+            // 如果申请内存大于chunkSize 直接创建非池化的Chunk来分配 并且该Chunk不会放在内存池中重用
             // Huge allocations are never served via the cache so just call allocateHuge
             allocateHuge(buf, reqCapacity);
         }
