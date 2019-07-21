@@ -105,6 +105,9 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
         return config;
     }
 
+    /**
+     * 服务端的isActive
+     */
     @Override
     public boolean isActive() {
         // As java.nio.ServerSocketChannel.isBound() will continue to return true even after the channel was closed

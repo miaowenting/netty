@@ -120,6 +120,9 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
         return (SocketChannel) super.javaChannel();
     }
 
+    /**
+     * 客户端的isActive
+     */
     @Override
     public boolean isActive() {
         SocketChannel ch = javaChannel();
@@ -310,8 +313,10 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
 
         boolean success = false;
         try {
+            // 执行真正的异步connect
             boolean connected = SocketUtils.connect(javaChannel(), remoteAddress);
             if (!connected) {
+                // 如果没有注册成功，就注册OP_CONNECT事件
                 selectionKey().interestOps(SelectionKey.OP_CONNECT);
             }
             success = true;
@@ -325,6 +330,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
 
     @Override
     protected void doFinishConnect() throws Exception {
+        // 判断JDK的SocketChannel连接结果，返回true表示连接成功
         if (!javaChannel().finishConnect()) {
             throw new Error();
         }
