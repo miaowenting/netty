@@ -50,20 +50,44 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     final int numSmallSubpagePools;
     final int directMemoryCacheAlignment;
     final int directMemoryCacheAlignmentMask;
+    /**
+     * 数组默认长度为32(512 >>4)
+     * Netty认为小于512子节的内存为小内存即tiny tiny按照16字节递增 比如16,32,48
+     */
     private final PoolSubpage<T>[] tinySubpagePools;
+    /**
+     * Netty认为大于等于512小于pageSize(8192)的内存空间为small
+     * small内存是翻倍来组织，也就是会产生[0,1024),[1024,2048),[2048,4096),[4096,8192)
+     */
     private final PoolSubpage<T>[] smallSubpagePools;
 
+    /**
+     * 存储内存利用率50-100%的chunk
+     */
     private final PoolChunkList<T> q050;
+    /**
+     * 存储内存利用率25-75%的chunk
+     */
     private final PoolChunkList<T> q025;
+    /**
+     * 存储内存利用率1-50%的chunk
+     */
     private final PoolChunkList<T> q000;
+    /**
+     * 存储内存利用率0-25%的chunk
+     */
     private final PoolChunkList<T> qInit;
     private final PoolChunkList<T> q075;
+    /**
+     * 存储内存利用率100%的chunk
+     */
     private final PoolChunkList<T> q100;
 
     private final List<PoolChunkListMetric> chunkListMetrics;
 
     // Metrics for allocations and deallocations
     private long allocationsNormal;
+    // 我们需要在这里使用LongCounter，因为这不是通过synchronized块来保护的。
     // We need to use the LongCounter here as this is not guarded via synchronized block.
     private final LongCounter allocationsTiny = PlatformDependent.newLongCounter();
     private final LongCounter allocationsSmall = PlatformDependent.newLongCounter();
@@ -142,6 +166,13 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
     abstract boolean isDirect();
 
+    /**
+     * 内存分配入口方法
+     * @param cache
+     * @param reqCapacity
+     * @param maxCapacity
+     * @return
+     */
     PooledByteBuf<T> allocate(PoolThreadCache cache, int reqCapacity, int maxCapacity) {
         PooledByteBuf<T> buf = newByteBuf(maxCapacity);
         allocate(cache, buf, reqCapacity);
@@ -172,8 +203,26 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         return (normCapacity & 0xFFFFFE00) == 0;
     }
 
+    /**
+     * 总结:内存池包含两层分配区：线程私有分配区和内存池公有分配区。当内存被分配给某个线程之后在释放内存时释放的内存不会直接返回给公有分配区，
+     * 而是直接在线程私有分配区中缓存，当线程频繁的申请内存时会提高分配效率。同时当线程申请内存的动作不活跃时可能会造成内存浪费的情况，
+     * 这时候内存池会对线程私有分配区中的情况进行监控，当发现线程的分配活动并不活跃时会把线程缓存的内存块释放返回给公有区。
+     * 在整个内存分配时可能会出现分配的内存过大导致内存池无法分配的情况，这时候就需要JVM堆直接分配，所以严格的讲有三层分配区
+
+     * 分配内存时默认先尝试从PoolThreadCache中分配内存，PoolThreadCache利用ThreadLocal的特性消除了多线程竞争，提高内存分配效率。
+     * 首次分配时PoolThreadCache中并没有可用内存进行分配，当上一次分配的内存使用完并释放时，会将其加入到PoolThreadCache中，
+     * 提供该线程下次申请时使用。分配的内存大小小于512时内存池分配Tiny块，大小在[512，PageSize]区间时分配Small块，
+     * Tiny块和Small块基于Page分配，分配的大小在(PageSize，ChunkSize]区间时分配Normal块，Normal块基于Chunk分配，
+     * 内存大小超过Chunk内存池无法分配这种大内存，直接由JVM堆分配并且内存池也不会缓存这种内存
+     *
+     * @param cache 线程私有分配缓存区
+     * @param buf
+     * @param reqCapacity
+     */
     private void allocate(PoolThreadCache cache, PooledByteBuf<T> buf, final int reqCapacity) {
+        // 将需要分配的内存规格化，既凑整，变成最接近的2的幂次方，比如1000，变成1024
         final int normCapacity = normalizeCapacity(reqCapacity);
+        // 判断需要申请的内存是否小于pageSize
         if (isTinyOrSmall(normCapacity)) { // capacity < pageSize
             int tableIdx;
             PoolSubpage<T>[] table;
