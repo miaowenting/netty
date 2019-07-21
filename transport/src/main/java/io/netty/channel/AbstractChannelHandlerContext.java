@@ -717,6 +717,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
 
     private void invokeWrite0(Object msg, ChannelPromise promise) {
         try {
+            // 首先是调用write函数，将数据写到buffer中
             ((ChannelOutboundHandler) handler()).write(this, msg, promise);
         } catch (Throwable t) {
             notifyOutboundHandlerException(t, promise);
@@ -771,6 +772,11 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         }
     }
 
+    /**
+     * 写数据的过程其实是分两步走的：
+     * 第一步是将要写的数据写到buffer中，
+     * 第二步是flush其实就是从buffer中读取数据然后发送给服务端
+     */
     private void write(Object msg, boolean flush, ChannelPromise promise) {
         ObjectUtil.checkNotNull(msg, "msg");
         try {
@@ -942,7 +948,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     }
 
     final boolean setAddComplete() {
-        for (; ;) {
+        for (; ; ) {
             int oldState = handlerState;
             if (oldState == REMOVE_COMPLETE) {
                 return false;
