@@ -83,8 +83,10 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
             return false;
         }
 
+        // 遍历ChunkList中的每个Chunk
         for (PoolChunk<T> cur = head; cur != null; cur = cur.next) {
             if (cur.allocate(buf, reqCapacity, normCapacity)) {
+                // 分配后若该Chunk的使用率大于该ChunkList的最大使用率，则把该Chunk从此ChunkList中移除，放到下一个ChunkList中
                 if (cur.usage() >= maxUsage) {
                     remove(cur);
                     nextList.add(cur);
