@@ -289,16 +289,28 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
     // Method must be called inside synchronized(this) { ... } block
     private void allocateNormal(PooledByteBuf<T> buf, int reqCapacity, int normCapacity) {
+        // 1.尝试从现有的Chunk进行分配
+        /**
+         *
+         * 1.qinit的chunk利用率低，但不会被回收
+         * 2.q075和q100由于内存利用率太高，导致内存分配的成功率大大降低，因此放到最后
+         * 3.q050保存的是内存利用率50%~100%的Chunk，这应该是个折中的选择。
+         *   这样能保证Chunk的利用率都会保持在一个较高水平提高整个应用的内存利用率，并且内存利用率在50%~100%的Chunk内存分配的成功率有保障
+         * 4.当应用在实际运行过程中碰到访问高峰，这时需要分配的内存是平时的好几倍，需要创建好几倍的Chunk，
+         *   如果先从q0000开始，这些在高峰期创建的chunk被回收的概率会大大降低，延缓了内存的回收进度，造成内存使用的浪费
+         */
         if (q050.allocate(buf, reqCapacity, normCapacity) || q025.allocate(buf, reqCapacity, normCapacity) ||
             q000.allocate(buf, reqCapacity, normCapacity) || qInit.allocate(buf, reqCapacity, normCapacity) ||
             q075.allocate(buf, reqCapacity, normCapacity)) {
             return;
         }
 
+        // 2.尝试创建一个Chuank进行内存分配
         // Add a new chunk.
         PoolChunk<T> c = newChunk(pageSize, maxOrder, pageShifts, chunkSize);
         boolean success = c.allocate(buf, reqCapacity, normCapacity);
         assert success;
+        // 将PoolChunk添加到PoolChunkList中
         qInit.add(c);
     }
 

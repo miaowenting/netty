@@ -251,6 +251,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
             return false;
         }
         ByteBuffer nioBuffer = cachedNioBuffers != null ? cachedNioBuffers.pollLast() : null;
+        // 初始化PooledByteBuf
         initBuf(buf, nioBuffer, handle, reqCapacity);
         return true;
     }
