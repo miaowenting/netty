@@ -37,6 +37,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * technics of
  * <a href="https://www.facebook.com/notes/facebook-engineering/scalable-memory-allocation-using-jemalloc/480222803919">
  * Scalable memory allocation using jemalloc</a>.
+ *
+ * NioEventLoop在为数据分配存放的内存时, 会首先尝试从线程本地缓存中去申请, 只有当本地缓存中申请失败, 才会考虑从全局内存中申请,
+ * 本地缓存的管理者就是PoolThreadCache对象。 Netty自己实现了类似LocalThread的类来充当线程缓存: PoolThreadLocalCache。
+ *
+ * 由构造函数可以看出directArena与PoolThreadCache绑定了, 同时PoolThreadCache也与某个NioEventLoop对应的线程绑定的,
+ * 所以该NioEventLoop线程都与唯一的directArena(&heapArena)绑定着, 这样相对减轻了线程间申请内存导致互斥的发生
+ *
  */
 final class PoolThreadCache {
 
@@ -45,20 +52,37 @@ final class PoolThreadCache {
     final PoolArena<byte[]> heapArena;
     final PoolArena<ByteBuffer> directArena;
 
-    // Hold the caches for the different size classes, which are tiny, small and normal.
+    /**
+     *  Hold the caches for the different size classes, which are tiny, small and normal.
+     */
+
+    /**
+     * tiny内存缓存的个数。默认为512
+     */
     private final MemoryRegionCache<byte[]>[] tinySubPageHeapCaches;
+    /**
+     * small内存缓存的个数,默认为256个
+     */
     private final MemoryRegionCache<byte[]>[] smallSubPageHeapCaches;
     private final MemoryRegionCache<ByteBuffer>[] tinySubPageDirectCaches;
     private final MemoryRegionCache<ByteBuffer>[] smallSubPageDirectCaches;
+    /**
+     * normalCacheSize缓存的个数，默认为64
+     */
     private final MemoryRegionCache<byte[]>[] normalHeapCaches;
     private final MemoryRegionCache<ByteBuffer>[] normalDirectCaches;
 
-    // Used for bitshifting when calculate the index of normal caches later
+    /**
+     * Used for bitshifting when calculate the index of normal caches later
+     */
     private final int numShiftsNormalDirect;
     private final int numShiftsNormalHeap;
     private final int freeSweepAllocationThreshold;
     private final AtomicBoolean freed = new AtomicBoolean();
 
+    /**
+     * 在本地线程每分配freeSweepAllocationThreshold 次内存后，检测一下是否需要释放内存
+     */
     private int allocations;
 
     // TODO: Test if adding padding helps under contention

@@ -16,12 +16,28 @@
 
 package io.netty.buffer;
 
+/**
+ * Netty中大于8K的内存是通过PoolChunk来分配的, 小于8k的内存是通过PoolSubpage分配的, 本章将详细描述如何通过PoolSubpage分配小于8K的内存。
+ * 当申请小于8K的内存时, 会从分配一个8k的叶子节点, 若用不完的话, 存在很大的浪费, 所以通过PoolSubpage来管理8K的内存
+ *
+ * 每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起来, 然后将PoolSubpage根据用户申请的ElementSize化成几等分,
+ * 之后只要再次申请ElementSize大小的内存, 将直接从这个PoolSubpage中分配
+ */
 final class PoolSubpage<T> implements PoolSubpageMetric {
 
     final PoolChunk<T> chunk;
+    /**
+     * 与PoolChunk中哪个节点映射一起来
+     */
     private final int memoryMapIdx;
     private final int runOffset;
+    /**
+     * 该叶子节点的大小
+     */
     private final int pageSize;
+    /**
+     * bitmap的每一位都描述的是一个element的使用情况
+     */
     private final long[] bitmap;
 
     PoolSubpage<T> prev;
@@ -37,7 +53,9 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
     // TODO: Test if adding padding helps under contention
     //private long pad0, pad1, pad2, pad3, pad4, pad5, pad6, pad7;
 
-    /** Special constructor that creates a linked list head */
+    /**
+     * Special constructor that creates a linked list head
+     */
     PoolSubpage(int pageSize) {
         chunk = null;
         memoryMapIdx = -1;
@@ -52,22 +70,33 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         this.memoryMapIdx = memoryMapIdx;
         this.runOffset = runOffset;
         this.pageSize = pageSize;
+        /**
+         * 因为小于8K的内存, 最小是以16b为单位来分配的, 一个long类型为64位,
+         * 最多需要pageSize/(16*64)个long就可以将一个PoolSubpage中所有element是否分配描述清楚了, log2(16*64)=10
+         */
         bitmap = new long[pageSize >>> 10]; // pageSize / 16 / 64
         init(head, elemSize);
     }
 
+    /**
+     * 根据当前需要分配的内存大小，确定需要多少个bitmap元素
+     * @param head
+     * @param elemSize elemSize代表此次申请的大小，比如申请64byte，那么这个page被分成了8k/64=2^7=128个
+     */
     void init(PoolSubpage<T> head, int elemSize) {
         doNotDestroy = true;
         this.elemSize = elemSize;
         if (elemSize != 0) {
+            // 被分成了128份64大小的内存
             maxNumElems = numAvail = pageSize / elemSize;
             nextAvail = 0;
+            // 6代表着long长度 = 2
             bitmapLength = maxNumElems >>> 6;
             if ((maxNumElems & 63) != 0) {
-                bitmapLength ++;
+                bitmapLength++;
             }
 
-            for (int i = 0; i < bitmapLength; i ++) {
+            for (int i = 0; i < bitmapLength; i++) {
                 bitmap[i] = 0;
             }
         }
@@ -92,7 +121,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         assert (bitmap[q] >>> r & 1) == 0;
         bitmap[q] |= 1L << r;
 
-        if (-- numAvail == 0) {
+        if (--numAvail == 0) {
             removeFromPool();
         }
 
@@ -101,7 +130,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
 
     /**
      * @return {@code true} if this subpage is in use.
-     *         {@code false} if this subpage is not used by its chunk and thus it's OK to be released.
+     * {@code false} if this subpage is not used by its chunk and thus it's OK to be released.
      */
     boolean free(PoolSubpage<T> head, int bitmapIdx) {
         if (elemSize == 0) {
@@ -114,7 +143,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
 
         setNextAvail(bitmapIdx);
 
-        if (numAvail ++ == 0) {
+        if (numAvail++ == 0) {
             addToPool(head);
             return true;
         }
@@ -167,7 +196,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
     private int findNextAvail() {
         final long[] bitmap = this.bitmap;
         final int bitmapLength = this.bitmapLength;
-        for (int i = 0; i < bitmapLength; i ++) {
+        for (int i = 0; i < bitmapLength; i++) {
             long bits = bitmap[i];
             if (~bits != 0) {
                 return findNextAvail0(i, bits);
@@ -180,7 +209,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         final int maxNumElems = this.maxNumElems;
         final int baseVal = i << 6;
 
-        for (int j = 0; j < 64; j ++) {
+        for (int j = 0; j < 64; j++) {
             if ((bits & 1) == 0) {
                 int val = baseVal | j;
                 if (val < maxNumElems) {
