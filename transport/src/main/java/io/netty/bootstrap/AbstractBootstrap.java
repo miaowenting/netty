@@ -283,6 +283,21 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return doBind(ObjectUtil.checkNotNull(localAddress, "localAddress"));
     }
 
+    /**
+     * 服务端启动过程：
+     * 1. 反射创建NioServerSocketChannel
+     *  a. newSocket() 调用SelectorProvider.openServerSocketChannel()创建JDK SocketChannel
+     *  b. AbstractNioChannel
+     *      AbstractChannel() 创建id, unsafe, pipeline
+     *      设置监听事件为OP_ACCEPT
+     *      configureBlocking(false) 设置channel的阻塞模式为非阻塞
+     *  c. 新建NioServerSocketChannelConfig(tcp参数配置)
+     * 2. 初始化服务端channel：options, attributes, 添加服务端Handler，添加ServerBootstrapAcceptor Handler
+     * 3. 注册selector，将jdk底层的channel注册到事件轮询器上
+     * 4. 端口绑定，最终调用javaChannel().bind(localAddress, config.getBacklog());
+     * @param localAddress
+     * @return
+     */
     private ChannelFuture doBind(final SocketAddress localAddress) {
         // 初始化并注册一个NioServerSocketChannel
         final ChannelFuture regFuture = initAndRegister();
