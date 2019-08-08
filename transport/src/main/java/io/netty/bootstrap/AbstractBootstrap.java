@@ -288,7 +288,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * 1. 反射创建NioServerSocketChannel->channelFactory.newChannel()入口
      *  a. newSocket() 调用SelectorProvider.openServerSocketChannel()创建JDK SocketChannel
      *  b. AbstractNioChannel
-     *      AbstractChannel() 创建id, unsafe, pipeline
+     *      创建id, unsafe, pipeline
      *      设置监听事件为OP_ACCEPT
      *      configureBlocking(false) 设置channel的阻塞模式为非阻塞
      *  c. 新建NioServerSocketChannelConfig(tcp参数配置)
@@ -296,7 +296,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      *  a. setChanelOptions(tcp相关配置), setChannelAttributes(用户自定义属性),
      *  b. 保存属性ChildOptions, ChildAttrs
      *  c. 配置用户自定义服务端处理器pipeline.addLast(config.handler())
-     *  d. 服务端pipeline，增加ServerBootstrapAcceptor Handler，用于给新连接创建一些属性设置
+     *  d. 服务端pipeline，增加ServerBootstrapAcceptor Handler，用于给新连接初始化一些属性设置
      * 3. 注册selector->AbstractChannel.register(channel)入口
      *  a. this.eventLoop = eventLoop 把nio线程和当前channel绑定
      *  b. register0() 实际注册、此时isActive为false
