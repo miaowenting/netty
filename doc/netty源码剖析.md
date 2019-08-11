@@ -251,6 +251,71 @@ PoolArena.allocate() 分配内存主要考虑先尝试从缓存中，然后再�
 
 #### 9.4 PoolSubpage
 
+Netty中大于8k的内存都是通过PoolChunk来分配的，小于8k的内存是通过PoolSubpage分配的。当申请小于8k的内存时，会分配一个8k的叶子节点，若用不完的话，存在很大的浪费，所以通过
+
+- 双向链表
+
+添加节点：
+
+```
+    private void addToPool(PoolSubpage<T> head) {
+        assert prev == null && next == null;
+        prev = head;
+        next = head.next;
+        next.prev = this;
+        head.next = this;
+    }
+```
+
+双向列表的插入：
+
+![avatar](image/双向链表的插入图解.png)
+
+第一步：首先找到插入位置，节点 s 将插入到节点 p 之前 
+第二步：将节点 s 的前驱指向节点 p 的前驱，即 s->prior = p->prior; 
+第三步：将节点 p 的前驱的后继指向节点 s 即 p->prior->next = s; 
+第四步：将节点 s 的后继指向节点 p 即 s->next = p; 
+第五步：将节点 p 的前驱指向节点 s 即 p->prior = s;
+
+移除节点：
+
+```
+    private void removeFromPool() {
+        assert prev != null && next != null;
+        prev.next = next;
+        next.prev = prev;
+        next = null;
+        prev = null;
+    }
+```
+
+双向列表的删除：
+
+![avatar](image/双向链表的删除图解.png)
+
+第一步：找到即将被删除的节点 p 
+第二步：将 p 的前驱的后继指向 p 的后继，即 p->prior->next = p->next; 
+第三步：将 p 的后继的前驱指向 p 的前驱，即 p->next->prior = p->prior; 
+第四步：删除节点 p 即 delete p;
+
+PoolSubpage 管理8k的内存，如下图：
+
+![avatar](image/PoolSubpage来管理8k的内存.png)
+
+每一个PoolSubpage都会与PoolChunk里面的一个叶子节点映射起来。
+
+1.首次请求Arena分配，Arena中的双向链表为空，不能分配；
+
+2.传递给Chunk分配，Chunk找到一个空闲的Page，然后均等切分并加入到Arena链表中，最后分配满足要求的大小。
+之后请求分配同样大小的内存，则直接在Arena中的PoolSubpage双向链表进行分配；如果链表中的节点都没有空间分配，则重复1步骤。
+
+Netty使用一个long整型表示在 PoolSubpage 中的分配结果，高32位表示均等切分小块的块号，其中的低6位用来表示64位即一个long的分配信息，其余位用来表示long数组的索引。低32位表示所属Chunk号。
+
+以下是PoolSubpage的init及allocate流程图:
+
+![avatar](image/PoolSubpage的init及allocate流程图.png)
+
+
 #### 9.5 PoolThreadCache
 
 #### 9.6 DirectByteBuffer
