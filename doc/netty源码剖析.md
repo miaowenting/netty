@@ -183,12 +183,85 @@ TCP粘包导致的读半包问题
 #### 8.1 轻量级对象池实现
 
 
+### 9 Netty内存池化管理
+
+#### 9.1 PoolArena
+
+Netty内存主要分为两种：DirectByteBuf 和 HeapByteBuf。Netty作为服务器架构技术，拥有大量的网络数据传输，当我们进行网络传输时，必须将数据拷贝至直接内存，合理利用好直接内存，
+能够显著提高性能。
+
+- Pool 和 Unpool的区别
+
+池化内存的管理方式是首先申请一大块内存，当使用完成释放后，再将该部分内存放入池子中，等待下一次的使用，这样的话，可以减少垃圾回收的次数，提高处理性能。
+非池化内存就是普通的内存使用，需要时直接申请，释放时直接释放。目前netty针对pool做了大量的支持，这样内存使用直接交给了netty管理，减轻了直接内存回收的压力。
+
+这样的话，内存分为4种： PoolDireBuf、UnpoolDireBuf、PoolHeapBuf、UnpoolHeapBuf。Netty底层默认使用PoolDireBuf类型的内存，这些内存主要由PoolArena管理。
+
+- PoolArena
+
+PoolArena作为Netty底层内存池核心管理类，主要原理是首先申请一些内存块，不同的成员变量来完成不同大小的内存块分配。下图描述了PoolArena最重要的成员变量：
+
+![avatar](image/PoolArena重要成员变量.png)
+
+Tiny解决 16b～498b 之间的内存分配，Small解决 512b~4kb 的内存分配，Normal解决 8kb～16mb 的内存分配。
+
+- PoolArena的内存分配
+
+线程分配内存主要从两个地方分配：PoolThreadCache 和 PoolArena
+
+![avatar](image/线程分配内存的两种方式.png)
+
+其中 PoolThreadCache 线程独享，PoolArena为几个线程共享。
+
+Netty真正申请内存时的调用过程：
+
+![avatar](image/PoolArena中申请内存的流程图.png)
+
+PoolArena.allocate() 分配内存主要考虑先尝试从缓存中，然后再尝试从PoolArena分配。Tiny 和 Small 的申请过程一样，以Tiny申请为例，具体过程如下：
+
+1）对申请的内存进行规范化，就是说只能申请某些固定大小的内存，比如Tiny范围的是16b倍数的内存，Small为512b、1k、2k、4k 的内存，Normal为8k、16k ... 16m
+  
+  范围的内存，始终是2的幂次方。申请的内存不足16b的，按照16b去申请。
+  
+2) 判断是否是小于8k的内存申请，若是申请Tiny|Small级别的内存：
+  
+  首先尝试从cache中申请，申请不到的话，接着会尝试从 tinySubPagePools 中申请，首先计算出该内存在 tinySubPagePools 中对应的下标。
+  
+  检查对应链串是否已经有PoolSubpage可用, 若有的话, 直接进入PoolSubpage.allocate进行内存分配
+  
+  若没有可分配的内存, 则会进入allocateNormal进行分配
+  
+3）若分配normal类型的类型, 首先也会尝试从缓存中分配, 然后再考虑从allocateNormal进行内存分配。
+
+4）若分配大于16m的内存, 则直接通过allocateHuge()从内存池外分配内存。
+
+#### 9.2 PoolChunkList
+
+对于在q050、q025、q000、qInit、q075这些PoolChunkList里申请内存的流程图如下：
+
+![avatar](image/在PoolChunkList中申请内存.png)
+
+按照以上顺序，这样安排的考虑是：
+
+将PoolChunk分配维持在较高的比例上
+
+保存一些空闲较大的内存，以便大内存的分配
+
+#### 9.3 PoolChunk
+
+#### 9.4 PoolSubpage
+
+#### 9.5 PoolThreadCache
+
+#### 9.6 DirectByteBuffer
 
 
-### 9 进阶案例
 
 
-#### 9.1 如何防止Netty服务端意外退出
+### 10 进阶案例
+
+
+#### 10.1 如何防止Netty服务端意外退出
 
 - 方法1 同步
 
@@ -349,10 +422,10 @@ public class TimeServer {
 ```
 
 
-#### 9.2 Netty中的优雅退出机制
+#### 10.2 Netty中的优雅退出机制
 
 
-##### 9.2.1 Java优雅退出机制
+##### 10.2.1 Java优雅退出机制
 
 - 程序正常退出
 
@@ -492,7 +565,7 @@ Process finished with exit code 1
 ```
 
 
-##### 9.2.2 Netty优雅退出机制
+##### 10.2.2 Netty优雅退出机制
 
 - netty优雅退出涉及的预处理操作和资源释放
 
@@ -518,7 +591,7 @@ Process finished with exit code 1
 
 ```
 
-#### 9.2 Netty客户端连接池资源泄漏案例
+#### 10.3 Netty客户端连接池资源泄漏案例
 
 ![avatar](image/错误的客户端线程模型.png)
 

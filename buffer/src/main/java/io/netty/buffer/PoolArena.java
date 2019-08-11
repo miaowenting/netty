@@ -42,47 +42,84 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         Normal
     }
 
+    /**
+     * Tiny级别的个数，每次递增2^4b，Tiny总共管理32个等级的小内存片: [16,32,48, ... ,496]，注意实际只有31个级别内存块
+     */
     static final int numTinySubpagePools = 512 >>> 4;
 
+    /**
+     * 全局默认唯一的分配者，PooledByteBufAllocator.DEFAULT
+     */
     final PooledByteBufAllocator parent;
 
+    /**
+     * log(16m/8k)=11，指的是Normal类型的内存等级，分别为[8k,16k,32k, ... ,16m]
+     */
     private final int maxOrder;
+    /**
+     * 默认8k
+     */
     final int pageSize;
+    /**
+     * log(8k)=13
+     */
     final int pageShifts;
+    /**
+     * 默认16m
+     */
     final int chunkSize;
+    /**
+     * -8192
+     */
     final int subpageOverflowMask;
+    /**
+     * 指的是Small类型的内存等级: pageShifts - log(512) = 4，分别为[512,1k,2k,4k]
+     */
     final int numSmallSubpagePools;
     final int directMemoryCacheAlignment;
     final int directMemoryCacheAlignmentMask;
     /**
+     * PoolSubpage用于分配小于8k的内存
+     *
+     * 用于分配小于512字节的内存，默认长度为32，因为内存分配最小为16，每次增加16，直到512，区间[16，512)一共有32个不同值
+     */
+    /**
      * 数组默认长度为32(512 >>4)
-     * Netty认为小于512子节的内存为小内存即tiny tiny按照16字节递增 比如16,32,48
+     * Netty认为小于512子节的内存为小内存即tiny tiny按照16字节递增 比如[16,32,48,...,512]
+     * Tiny类型分为31个等级，每个等级都可以存放一个链（元素为PoolSubpage），可存放未分配的该范围的内存块
      */
     private final PoolSubpage<T>[] tinySubpagePools;
     /**
      * Netty认为大于等于512小于pageSize(8192)的内存空间为small
      * small内存是翻倍来组织，也就是会产生[0,1024),[1024,2048),[2048,4096),[4096,8192)
+     * [512,1k,2k,4k]
+     * Small类型分为4个等级，每个等级都可以存放一个链（元素为PoolSubpage），可存放未分配的该范围的内存块
      */
     private final PoolSubpage<T>[] smallSubpagePools;
 
     /**
      * poolChunkList用于分配大于8k的内存
-     * <p>
      * 多个ChunkList按照双向链表排列,每个ChunkList中包含的Chunk数量都会动态变化，当该Chunk中的内存利用率发生变化时会向其他ChunkList中移动
      * <p>
+     */
+    /**
      * 存储内存利用率50-100%的chunk
+     * 若q050中某个PoolChunk使用率小于50%之后，该PoolChunk被移动到q025
      */
     private final PoolChunkList<T> q050;
     /**
      * 存储内存利用率25-75%的chunk
+     * 若q025中某个PoolChunk使用率大于25%之后，该PoolChunk被移动到q050
      */
     private final PoolChunkList<T> q025;
     /**
      * 存储内存利用率1-50%的chunk
+     * 若q000使用率为0，会被释放掉
      */
     private final PoolChunkList<T> q000;
     /**
      * 存储内存利用率0-25%的chunk
+     * 若qInit使用率为0，也不会释放该节点
      */
     private final PoolChunkList<T> qInit;
     /**
@@ -112,7 +149,10 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     // We need to use the LongCounter here as this is not guarded via synchronized block.
     private final LongCounter deallocationsHuge = PlatformDependent.newLongCounter();
 
-    // Number of thread caches backed by this arena.
+    /**
+     * Number of thread caches backed by this arena.
+     * 该PoolArena被多少线程引用
+     */
     final AtomicInteger numThreadCaches = new AtomicInteger();
 
     // TODO: Test if adding padding helps under contention
@@ -338,6 +378,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         boolean success = c.allocate(buf, reqCapacity, normCapacity);
         assert success;
         // 将PoolChunk添加到PoolChunkList中
+        // 第一次分配的话，都放到qInit
         qInit.add(c);
     }
 
