@@ -55,18 +55,10 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     final int directMemoryCacheAlignment;
     final int directMemoryCacheAlignmentMask;
     /**
-     * PoolSubpage用于分配小于8k的内存
-     * <p>
-     * 用于分配小于512字节的内存，默认长度为32，因为内存分配最小为16，每次增加16，直到512，区间[16，512)一共有32个不同值
-     */
-    /**
      * 数组默认长度为32(512 >>4)
      * Netty认为小于512子节的内存为小内存即tiny tiny按照16字节递增 比如16,32,48
      */
     private final PoolSubpage<T>[] tinySubpagePools;
-    /**
-     * 用于分配大于等于512字节的内存，默认长度为4
-     */
     /**
      * Netty认为大于等于512小于pageSize(8192)的内存空间为small
      * small内存是翻倍来组织，也就是会产生[0,1024),[1024,2048),[2048,4096),[4096,8192)
@@ -78,8 +70,6 @@ abstract class PoolArena<T> implements PoolArenaMetric {
      * <p>
      * 多个ChunkList按照双向链表排列,每个ChunkList中包含的Chunk数量都会动态变化，当该Chunk中的内存利用率发生变化时会向其他ChunkList中移动
      * <p>
-     */
-    /**
      * 存储内存利用率50-100%的chunk
      */
     private final PoolChunkList<T> q050;
@@ -100,7 +90,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
      */
     private final PoolChunkList<T> q075;
     /**
-     * 存储内存利用率100%的chunk
+     * 存储内存利用率为100%的chunk
      */
     private final PoolChunkList<T> q100;
 
@@ -230,10 +220,6 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     }
 
     /**
-     * 默认先尝试从poolThreadCache中分配内存，PoolThreadCache利用ThreadLocal的特性，消除了多线程竞争，提高内存分配效率；
-     * 首次分配时，poolThreadCache中并没有可用内存进行分配，当上一次分配的内存使用完并释放时，会将其加入到poolThreadCache中，提供该线程下次申请时使用
-     */
-    /**
      * 总结:内存池包含两层分配区：线程私有分配区和内存池公有分配区。当内存被分配给某个线程之后在释放内存时释放的内存不会直接返回给公有分配区，
      * 而是直接在线程私有分配区中缓存，当线程频繁的申请内存时会提高分配效率。同时当线程申请内存的动作不活跃时可能会造成内存浪费的情况，
      * 这时候内存池会对线程私有分配区中的情况进行监控，当发现线程的分配活动并不活跃时会把线程缓存的内存块释放返回给公有区。
@@ -248,6 +234,10 @@ abstract class PoolArena<T> implements PoolArenaMetric {
      * @param cache 线程私有分配缓存区
      * @param buf
      * @param reqCapacity
+     */
+    /**
+     * 默认先尝试从poolThreadCache中分配内存，PoolThreadCache利用ThreadLocal的特性，消除了多线程竞争，提高内存分配效率；
+     * 首次分配时，poolThreadCache中并没有可用内存进行分配，当上一次分配的内存使用完并释放时，会将其加入到poolThreadCache中，提供该线程下次申请时使用
      */
     private void allocate(PoolThreadCache cache, PooledByteBuf<T> buf, final int reqCapacity) {
         // 将需要分配的内存规格化，既凑整，变成最接近的2的幂次方，比如1000，变成1024
@@ -302,7 +292,6 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             incTinySmallAllocation(tiny);
             return;
         }
-
         if (normCapacity <= chunkSize) {
             // 尝试从本地线程allocateNormal方法进行内存分配
             // 如果分配一个page以上的内存，直接采用方法allocateNormal分配内存
@@ -325,18 +314,19 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
     // Method must be called inside synchronized(this) { ... } block
     private void allocateNormal(PooledByteBuf<T> buf, int reqCapacity, int normCapacity) {
-        //将PoolChunk分配维持在较高的比例上。
-        //保存一些空闲度比较大的内存, 以便大内存的分配。
-
-        // q000中的chunk，当内存利用率为0时，就从链表中删除，直接释放物理内存，避免越来越多的chunk导致内存被占满
-        // 选择从q50开始，这样大部分情况下，chunk的利用率会保持在一个较高的水平，提高整个应用的内存利用率
-        // qInit利用率低，但不会被回收
-        // q075和q100由于内存利用率太高，导致内存分配的成功率大大降低，因此放到最后
-        if (q050.allocate(buf, reqCapacity, normCapacity)
-                || q025.allocate(buf, reqCapacity, normCapacity)
-                || q000.allocate(buf, reqCapacity, normCapacity)
-                || qInit.allocate(buf, reqCapacity, normCapacity)
-                || q075.allocate(buf, reqCapacity, normCapacity)) {
+        // 1.尝试从现有的Chunk进行分配
+        /**
+         *
+         * 1.qinit的chunk利用率低，但不会被回收
+         * 2.q075和q100由于内存利用率太高，导致内存分配的成功率大大降低，因此放到最后
+         * 3.q050保存的是内存利用率50%~100%的Chunk，这应该是个折中的选择。
+         *   这样能保证Chunk的利用率都会保持在一个较高水平提高整个应用的内存利用率，并且内存利用率在50%~100%的Chunk内存分配的成功率有保障
+         * 4.当应用在实际运行过程中碰到访问高峰，这时需要分配的内存是平时的好几倍，需要创建好几倍的Chunk，
+         *   如果先从q0000开始，这些在高峰期创建的chunk被回收的概率会大大降低，延缓了内存的回收进度，造成内存使用的浪费
+         */
+        if (q050.allocate(buf, reqCapacity, normCapacity) || q025.allocate(buf, reqCapacity, normCapacity) ||
+            q000.allocate(buf, reqCapacity, normCapacity) || qInit.allocate(buf, reqCapacity, normCapacity) ||
+            q075.allocate(buf, reqCapacity, normCapacity)) {
             return;
         }
 
@@ -347,6 +337,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         PoolChunk<T> c = newChunk(pageSize, maxOrder, pageShifts, chunkSize);
         boolean success = c.allocate(buf, reqCapacity, normCapacity);
         assert success;
+        // 将PoolChunk添加到PoolChunkList中
         qInit.add(c);
     }
 
