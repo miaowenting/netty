@@ -64,6 +64,11 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
     /**
      * Create a new instance.
      *
+     * 创建NioEventLoopGroup
+     * 1. new ThreadPerTaskExecutor(newDefaultThreadFactory()); 创建事件处理器
+     * 2. for(){new child()}  构造NioEventLoop
+     * 3. chooseFactory.newChooser() 创建线程选择器
+     *
      * @param nThreads          the number of threads that will be used by this instance.
      * @param executor          the Executor to use, or {@code null} if the default should be used.
      * @param chooserFactory    the {@link EventExecutorChooserFactory} to use.
