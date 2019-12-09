@@ -312,7 +312,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
         // Logarithm base 2. At this point we know that pageSize is a power of two.
         return Integer.SIZE - 1 - Integer.numberOfLeadingZeros(pageSize);
     }
-
+    //TODO为什么这里是大于14？
     private static int validateAndCalculateChunkSize(int pageSize, int maxOrder) {
         if (maxOrder > 14) {
             throw new IllegalArgumentException("maxOrder: " + maxOrder + " (expected: 0-14)");

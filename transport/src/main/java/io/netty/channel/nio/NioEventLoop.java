@@ -278,6 +278,11 @@ public final class NioEventLoop extends SingleThreadEventLoop {
      * Registers an arbitrary {@link SelectableChannel}, not necessarily created by Netty, to the {@link Selector}
      * of this event loop.  Once the specified {@link SelectableChannel} is registered, the specified {@code task} will
      * be executed by this event loop when the {@link SelectableChannel} is ready.
+     * 向{@link选择器}注册一个任意的{@link SelectableChannel}，不一定是由Netty创建的。
+
+        这个事件循环的。一旦注册了指定的{@link SelectableChannel}，指定的{@code任务}将执行
+
+     *  当{@link SelectableChannel}准备好时，由这个事件循环执行。
      */
     public void register(final SelectableChannel ch, final int interestOps, final NioTask<?> task) {
         if (ch == null) {
@@ -334,8 +339,11 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     /**
      * Sets the percentage of the desired amount of time spent for I/O in the event loop.  The default value is
-     * {@code 50}, which means the event loop will try to spend the same amount of time for I/O as for non-I/O tasks.
-     */
+     * {@code 50}, which means the event loop will try to spend the same amount of time for I/O as for non-I/O tasks
+     * 设置事件循环中I/O所需时间的百分比。默认值为
+
+     * {@code 50}，这意味着事件循环将尝试为I/O花费与非I/O任务相同的时间。
+     * */
     public void setIoRatio(int ioRatio) {
         if (ioRatio <= 0 || ioRatio > 100) {
             throw new IllegalArgumentException("ioRatio: " + ioRatio + " (expected: 0 < ioRatio <= 100)");
@@ -507,6 +515,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                     } finally {
                         // Ensure we always run tasks.
                         final long ioTime = System.nanoTime() - ioStartTime;
+                        //确保处理任务的时间
                         runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
                     }
                 }
@@ -621,16 +630,19 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         for (int i = 0; i < selectedKeys.size; ++i) {
             final SelectionKey k = selectedKeys.keys[i];
             // null out entry in the array to allow to have it GC'ed once the Channel close
+            // 空出数组中的条目，以便在通道关闭后对其进行GC'ed
             // See https://github.com/netty/netty/issues/2363
             selectedKeys.keys[i] = null;
 
             // 拿到注册在selector上的channel
+            //这个attachment是在，abstractNioChannel中doRegister时带进去的，channel对象
             final Object a = k.attachment();
 
             if (a instanceof AbstractNioChannel) {
                 // 因为是NioServerSocketChannel,所以执行这里
                 processSelectedKey(k, (AbstractNioChannel) a);
             } else {
+                //TODO 待确定
                 @SuppressWarnings("unchecked")
                 NioTask<SelectableChannel> task = (NioTask<SelectableChannel>) a;
                 processSelectedKey(k, task);
@@ -648,7 +660,10 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     private void processSelectedKey(SelectionKey k, AbstractNioChannel ch) {
+        //unsafe 读写操作 用于实际传输
         final AbstractNioChannel.NioUnsafe unsafe = ch.unsafe();
+        //its channel is closed, or its selector is closed.
+        //如果selectionKey已经无效，那么就关闭unsafe的channel
         if (!k.isValid()) {
             final EventLoop eventLoop;
             try {
@@ -672,9 +687,11 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
 
         try {
+            //This key's ready-operation set
             int readyOps = k.readyOps();
             // We first need to call finishConnect() before try to trigger a read(...) or write(...) as otherwise
             // the NIO JDK channel implementation may throw a NotYetConnectedException.
+            //readyops 可能是多个事件，并且他是OP_CONNECT事件
             // 处理OP_CONNECT事件
             if ((readyOps & SelectionKey.OP_CONNECT) != 0) {
                 // remove OP_CONNECT as otherwise Selector.select(..) will always return without blocking

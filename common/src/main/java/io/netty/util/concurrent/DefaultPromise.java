@@ -47,12 +47,16 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
     /**
      * One or more listeners. Can be a {@link GenericFutureListener} or a {@link DefaultFutureListeners}.
      * If {@code null}, it means either 1) no listeners were added yet or 2) all listeners were notified.
+     *  一个或多个侦听器。可以是{@link GenericFutureListener}或{@link defaultfuturelistener}。
      *
+     * 如果{@code null}，这意味着要么1：没有添加监听器，要么2：通知所有监听器。
      * Threading - synchronized(this). We must support adding listeners when there is no EventExecutor.
+     * 线程-同步(这个)。我们必须支持在没有EventExecutor时添加侦听器。
      */
     private Object listeners;
     /**
      * Threading - synchronized(this). We are required to hold the monitor to use Java's underlying wait()/notifyAll().
+     * 线程-同步(这个)。我们需要保持监视器以使用Java的底层wait()/notifyAll()。
      */
     private short waiters;
 
@@ -373,6 +377,9 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
      * It is assumed this executor will protect against {@link StackOverflowError} exceptions.
      * The executor may be used to avoid {@link StackOverflowError} by executing a {@link Runnable} if the stack
      * depth exceeds a threshold.
+     * 假定此执行器将防止{@link StackOverflowError}异常。
+     *执行器可以通过在堆栈中执行一个{@link Runnable}来避免{@link StackOverflowError}
+     *深度超过阈值。
      * @return The executor used to notify listeners when this promise is complete.
      */
     protected EventExecutor executor() {
@@ -403,6 +410,11 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
         notifyListenerWithStackOverFlowProtection(eventExecutor, future, listener);
     }
 
+    /**
+     * 获得listener的栈深度
+     * 最大栈深度为8
+     * 如果栈深度较小：
+     */
     private void notifyListeners() {
         EventExecutor executor = executor();
         if (executor.inEventLoop()) {
@@ -546,6 +558,9 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
     /**
      * Check if there are any waiters and if so notify these.
      * @return {@code true} if there are any listeners attached to the promise, {@code false} otherwise.
+     * 检查这里任意一个等待者，并且通知他们
+     * true ： 这里任何一个监听着收到了这个promise
+     * false：全部都没有收到 or  没有监听者
      */
     private synchronized boolean checkNotifyWaiters() {
         if (waiters > 0) {

@@ -130,6 +130,9 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
             }
         }
 
+        /**
+         * 开始读取数据
+         */
         @Override
         public final void read() {
             final ChannelConfig config = config();
@@ -139,6 +142,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
             }
             final ChannelPipeline pipeline = pipeline();
             final ByteBufAllocator allocator = config.getAllocator();
+            //获取并重置allocHandle对象
             final RecvByteBufAllocator.Handle allocHandle = recvBufAllocHandle();
             allocHandle.reset(config);
 
@@ -153,16 +157,18 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                     if (allocHandle.lastBytesRead() <= 0) {
                         // 什么都没有读到,跳出循环
                         // nothing was read. release the buffer.
+                        // 没读到数据  释放buf
                         byteBuf.release();
                         byteBuf = null;
+                        //如果最后读取的字节为小于 0 ，说明对端已经关闭
                         close = allocHandle.lastBytesRead() < 0;
                         if (close) {
-                            // There is nothing left to read as we received an EOF.
+                            // There is nothing left to read as we received an EOF. end of file
                             readPending = false;
                         }
                         break;
                     }
-
+                    //读到了数据
                     allocHandle.incMessagesRead(1);
                     readPending = false;
                     // 发起调用channelRead，将bytebuf传过去
@@ -173,6 +179,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
 
                 // 读取完之后进行的处理
                 allocHandle.readComplete();
+                //通知pipline读取完成
                 pipeline.fireChannelReadComplete();
 
                 if (close) {

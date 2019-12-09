@@ -134,6 +134,10 @@ public class DefaultSocketChannelConfig extends DefaultChannelConfig
         }
     }
 
+    /**
+     * 使用javaSocket获取最大发送的缓存大小
+     * @return
+     */
     @Override
     public int getSendBufferSize() {
         try {

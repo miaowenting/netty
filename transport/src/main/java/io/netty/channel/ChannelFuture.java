@@ -31,6 +31,15 @@ import java.util.concurrent.TimeUnit;
  * been completed at the end of the call.  Instead, you will be returned with
  * a {@link ChannelFuture} instance which gives you the information about the
  * result or status of the I/O operation.
+ * Netty中的所有I/O操作都是异步的。这意味着任何I/O调用都会
+
+ *立即返回，但不能保证所要求的I/O操作已经返回
+
+ *在通话结束时完成。相反，您将返回与
+
+ *一个{@link ChannelFuture}实例，该实例提供有关
+
+ I/O操作的结果或状态。
  * <p>
  * A {@link ChannelFuture} is either <em>uncompleted</em> or <em>completed</em>.
  * When an I/O operation begins, a new future object is created.  The new future

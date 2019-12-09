@@ -926,8 +926,14 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         return this;
     }
 
+    /**
+     * 有数据读入的时候会调用(InBound)
+     * @param msg
+     * @return
+     */
     @Override
     public final ChannelPipeline fireChannelRead(Object msg) {
+        //pipline节点类的静态方法 穿进去的head  从head开始执行
         AbstractChannelHandlerContext.invokeChannelRead(head, msg);
         return this;
     }
@@ -1026,7 +1032,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     public final ChannelFuture write(Object msg, ChannelPromise promise) {
         return tail.write(msg, promise);
     }
-
+    /** 写数据出去 */
     @Override
     public final ChannelFuture writeAndFlush(Object msg, ChannelPromise promise) {
         return tail.writeAndFlush(msg, promise);
