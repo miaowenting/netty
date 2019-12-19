@@ -146,7 +146,11 @@ public class NioEventLoopTest extends AbstractEventLoopTest {
         }
     }
 
-    @Test(timeout = 3000)
+    /**
+     * timeout参数可以保证这个测试接口整体的超时时间
+     * @throws Exception
+     */
+    @Test(timeout = 30000)
     public void testSelectableChannel() throws Exception {
         NioEventLoopGroup group = new NioEventLoopGroup(1);
         NioEventLoop loop = (NioEventLoop) group.next();
@@ -165,6 +169,7 @@ public class NioEventLoopTest extends AbstractEventLoopTest {
             loop.register(selectableChannel, SelectionKey.OP_CONNECT, new NioTask<SocketChannel>() {
                 @Override
                 public void channelReady(SocketChannel ch, SelectionKey key) {
+
                     latch.countDown();
                 }
 
