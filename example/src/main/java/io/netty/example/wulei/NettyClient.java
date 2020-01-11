@@ -33,7 +33,7 @@ public class NettyClient {
 									throws Exception {
 								ch.pipeline().addLast(new DelimiterBasedFrameDecoder
 										(Integer.MAX_VALUE,Delimiters.lineDelimiter()[0]));
-								ch.pipeline().addLast(new ClientHandler());
+								ch.pipeline().addLast(new RouterServerHandler());
 								ch.pipeline().addLast(new StringEncoder());
 								
 							}

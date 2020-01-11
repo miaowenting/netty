@@ -47,6 +47,11 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
     static final InternalLogger logger = InternalLoggerFactory.getInstance(DefaultChannelPipeline.class);
 
+    /**
+     *  HEAD_NAME
+     *  TAIL_NAME
+     *  ChannelHandlerContext构建的双向链表中的两个特殊的handler，head和tail
+     */
     private static final String HEAD_NAME = generateName0(HeadContext.class);
     private static final String TAIL_NAME = generateName0(TailContext.class);
 

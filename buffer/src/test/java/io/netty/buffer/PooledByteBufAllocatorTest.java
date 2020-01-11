@@ -476,6 +476,35 @@ public class PooledByteBufAllocatorTest extends AbstractByteBufAllocatorTest<Poo
         }
     }
 
+    @Test
+    public void unPoolTest(){
+        long beginTime = System.currentTimeMillis();
+        ByteBuf buf = null;
+        int maxTimes = 100000000;
+        for (int i = 0; i < maxTimes; i++) {
+            // 10KB
+            buf = Unpooled.buffer(10 * 1024);
+            buf.release();
+        }
+
+        System.out.println("unPooled cost time :" + (System.currentTimeMillis() - beginTime));
+    }
+
+    @Test
+    public void poolTest(){
+        long beginTime = System.currentTimeMillis();
+        PooledByteBufAllocator allocator = new PooledByteBufAllocator(false);
+        ByteBuf buf = null;
+        int maxTimes = 100000000;
+        for (int i = 0; i < maxTimes; i++) {
+            // 10KB
+            buf = allocator.heapBuffer(10 * 1024);
+            buf.release();
+        }
+
+        System.out.println("pooled cost time :" + (System.currentTimeMillis() - beginTime));
+    }
+
     private static boolean isExpired(long start, long expireTime) {
         return System.nanoTime() - start > expireTime;
     }
@@ -558,5 +587,6 @@ public class PooledByteBufAllocatorTest extends AbstractByteBufAllocatorTest<Poo
                 throw (Throwable) obj;
             }
         }
+
     }
 }

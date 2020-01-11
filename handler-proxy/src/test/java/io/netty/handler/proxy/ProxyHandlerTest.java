@@ -468,7 +468,7 @@ public class ProxyHandlerTest {
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
-            ctx.writeAndFlush(Unpooled.copiedBuffer("A\n", CharsetUtil.US_ASCII));
+            ctx.writeAndFlush(Unpooled.copiedBuffer("A\n and wulei ***", CharsetUtil.US_ASCII));
             readIfNeeded(ctx);
         }
 
@@ -490,8 +490,9 @@ public class ProxyHandlerTest {
         protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
             String str = ((ByteBuf) msg).toString(CharsetUtil.US_ASCII);
             received.add(str);
+            ctx.writeAndFlush(Unpooled.copiedBuffer("C\n and wulei CCC1 ", CharsetUtil.US_ASCII));
             if ("2".equals(str)) {
-                ctx.writeAndFlush(Unpooled.copiedBuffer("C\n", CharsetUtil.US_ASCII));
+                ctx.writeAndFlush(Unpooled.copiedBuffer("C\n and wulei CCC ", CharsetUtil.US_ASCII));
             }
             readIfNeeded(ctx);
         }

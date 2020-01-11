@@ -197,7 +197,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
         }
     }
 
-    private ChannelFuture doResolveAndConnect0(final Channel channel, SocketAddress remoteAddress,
+    private ChannelFuture  doResolveAndConnect0(final Channel channel, SocketAddress remoteAddress,
                                                final SocketAddress localAddress, final ChannelPromise promise) {
         try {
             final EventLoop eventLoop = channel.eventLoop();

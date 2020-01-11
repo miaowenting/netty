@@ -94,10 +94,22 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
     }
 
     private final class HandleImpl extends MaxMessageHandle {
+        /**
+         * 容量向量表对应的索引
+         */
         private final int minIndex;
         private final int maxIndex;
+        /**
+         * 当前索引
+         */
         private int index;
+        /**
+         * 下一次预分配的Buffer大小
+         */
         private int nextReceiveBufferSize;
+        /**
+         * 是否立即执行容量伸缩操作
+         */
         private boolean decreaseNow;
 
         HandleImpl(int minIndex, int maxIndex, int initial) {
@@ -128,7 +140,18 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
             return nextReceiveBufferSize;
         }
 
+        /**
+         * 当NioSocketChannel完成读操作时，会计算本次轮训读取的总字节数，也就是record()方法的参数actualReadBytes，
+         * record()方法根据actualReadBytes，对（下次的）ByteBuf进行动态伸缩
+         *
+         * 方法逻辑非常有借鉴意义，
+         * 1、可以自动收缩与扩大；
+         * 2、收缩与扩大的速度是不一样的
+         * @param actualReadBytes
+         */
         private void record(int actualReadBytes) {
+            // 首先对当前索引做步进为一的缩减，计算出缩减后索引对应的容量值，当本次实际读取的总字节数比此容量值小时，
+            // 则说明可以对下一次ByteBuf进行缩减
             if (actualReadBytes <= SIZE_TABLE[max(0, index - INDEX_DECREMENT - 1)]) {
                 if (decreaseNow) {
                     index = max(index - INDEX_DECREMENT, minIndex);
@@ -137,6 +160,7 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
                 } else {
                     decreaseNow = true;
                 }
+                // 当本次实际读取的总字节数比预测的nextReceiveBufferSize大时，则进行步进为4的扩容操作
             } else if (actualReadBytes >= nextReceiveBufferSize) {
                 index = min(index + INDEX_INCREMENT, maxIndex);
                 nextReceiveBufferSize = SIZE_TABLE[index];
