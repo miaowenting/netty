@@ -224,17 +224,17 @@ Netty真正申请内存时的调用过程：
 PoolArena.allocate() 分配内存主要考虑先尝试从缓存中，然后再尝试从PoolArena分配。Tiny 和 Small 的申请过程一样，以Tiny申请为例，具体过程如下：
 
 1）对申请的内存进行规范化，就是说只能申请某些固定大小的内存，比如Tiny范围的是16b倍数的内存，Small为512b、1k、2k、4k 的内存，Normal为8k、16k ... 16m
-  
+
   范围的内存，始终是2的幂次方。申请的内存不足16b的，按照16b去申请。
-  
+
 2) 判断是否是小于8k的内存申请，若是申请Tiny|Small级别的内存：
-  
+
   首先尝试从cache中申请，申请不到的话，接着会尝试从 tinySubPagePools 中申请，首先计算出该内存在 tinySubPagePools 中对应的下标。
-  
+
   检查对应链串是否已经有PoolSubpage可用, 若有的话, 直接进入PoolSubpage.allocate进行内存分配
-  
+
   若没有可分配的内存, 则会进入allocateNormal进行分配
-  
+
 3）若分配normal类型的类型, 首先也会尝试从缓存中分配, 然后再考虑从allocateNormal进行内存分配。
 
 4）若分配大于16m的内存, 则直接通过allocateHuge()从内存池外分配内存。
@@ -682,7 +682,32 @@ NioEventLoop线程对应一个TCP连接，如果连接数较多时，就会导�
 
 
 
+#### 11 Netty高级功能：业务处理中线程池的使用
 
+##### 11.1、线程池
+
+在业务channelHandler中，我们有可能会有一些导致同步阻塞的业务处理逻辑，比如数据库操作，同步的调用第三方服务等，这时候，为了提升性能，我们可以采用线程池来提升并发处理能力。
+
+线程池添加策略：
+
+##### 1、业务自定义线程池执行业务channleHandler
+
+![13194828-5ecc39a9eb9283f6](netty源码剖析.assets/13194828-5ecc39a9eb9283f6.png)
+
+![13194828-ab8c9a72352f6d18](netty源码剖析.assets/13194828-ab8c9a72352f6d18.png)
+
+##### 2、Netty提供EventExecutorGroup机制来并行执行ChannelHandler
+
+![13194828-662054ed2c753416](netty源码剖析.assets/13194828-662054ed2c753416.png)
+
+![13194828-829b7a68781a4c3f](netty源码剖析.assets/13194828-829b7a68781a4c3f.png)
+
+从上面的图中，可以看出来，Netty提供的的EventExecutorGroup针对的是一个NioEventLoop上的多个客户端channel并发处理，如果是一个客户端channel不断的请求，那么这种并发处理并没有用，服务端还是只有一个线程执行客户端业务。简单的说，就是如果不加EventExecutorGroup，则NioEventLoop中的线程会不断的轮询处理它所管理的客户端channel，加上EventExecutorGroup之后，NioEventLoop就可以把其所管理的客户端channel丢给线程池EventExecutorGroup处理，在EventExecutorGroup线程池中，一个线程处理一个channel的读写操作。
+
+但是业务自定的ExecutorService针对的是所有的客户端channel业务请求并发处理，就算是一个客户端channel的多个请求，也是可以并发处理的，这种锁竞争会很激烈。
+
+所以，在使用中，如果是客户端的并发连接数channel多，且每个客户端channel的业务请求阻塞不多，那么使用EventExecutorGroup；
+如果客户端并发连接数channel不多，但是客户端channle的业务请求阻塞较多（复杂业务处理和数据库处理），那么使用ExecutorService。
 
 
 

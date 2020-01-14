@@ -27,6 +27,50 @@ import java.util.concurrent.TimeUnit;
  * life-cycle and allows shutting them down in a global fashion.
  *
  */
+
+/**
+ * 标题：通过多线程，提升ChannelHandler执行的并发度
+ * 1、线程池
+ 在业务channelHandler中，我们有可能会有一些导致同步阻塞的业务处理逻辑，比如数据库操作，同步的调用第三方服务等，这时候，为了提升性能，我们可以采用线程池来提升并发处理能力。
+
+ 线程池添加策略：
+
+ 1、业务自定义线程池执行业务channleHandler，例如：
+  public class SimpleHandler extends ChannelInboundHandlerAdapter{
+    static ThreadPoolExecutor threadPoolExecutor =
+            new ThreadPoolExecutor(10, 300, 2000, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(100));
+
+   @Override
+   public void channelRead(ChannelHandlerContext ctx, Object msg)throws Exception {
+
+    threadPoolExecutor.execute(() -> {
+     // 业务处理逻辑代码省略
+     try {
+        TimeUnit.MILLISECONDS.sleep(100);
+    } catch (InterruptedException e) {
+        //
+        }
+    });
+  }}}
+
+ 2、Netty提供EventExecutorGroup机制来并行执行ChannelHandler
+    ServerBootstrap serverBootstrap = new ServerBootstrap();
+    final EventExecutorGroup eventExecutors = new DefaultEventExecutorGroup(100);
+    serverBootstrap.group(parentGroup, childGroup);
+    serverBootstrap.channel(NioServerSocketChannel.class);
+    serverBootstrap.option(ChannelOption.SO_BACKLOG, 128)
+                  .option(ChannelOption.SO_KEEPALIVE, true)
+                  .childHandler(new ChannelInitializer<SocketChannel>() {
+    @Override
+    protected void initChannel(SocketChannel ch) throws Exception {
+        ch.pipeline().addLast(new DelimiterBasedFrameDecoder(Integer.MAX_VALUE,Delimiters.lineDelimiter()[0]));
+        ch.pipeline().addLast(eventExecutors, new SimpleHandler());
+        }
+    });
+
+ *
+ *
+ */
 public interface EventExecutorGroup extends ScheduledExecutorService, Iterable<EventExecutor> {
 
     /**

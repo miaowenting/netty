@@ -98,6 +98,12 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
      * Return the {@link Runnable} which is ready to be executed with the given {@code nanoTime}.
      * You should use {@link #nanoTime()} to retrieve the correct {@code nanoTime}.
      */
+    /**
+     * 此处值得我们学习的地方是从队列中获取task的方式，一般我都是使用queue.poll()，
+     * 但是这里使用的是queue.peek() & queue.remove(),两个方法的结合，更灵活，
+     * 即只有当task符合条件时才真正去调度执行，如果使用poll不符合条件还得再加回去。
+     *
+     */
     protected final Runnable pollScheduledTask(long nanoTime) {
         assert inEventLoop();
 

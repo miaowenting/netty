@@ -10,6 +10,8 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.DelimiterBasedFrameDecoder;
 import io.netty.handler.codec.Delimiters;
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
+import io.netty.util.concurrent.EventExecutorGroup;
 
 /**
  * 测试类
@@ -23,6 +25,7 @@ public class NettyServer {
 		EventLoopGroup childGroup = new NioEventLoopGroup();
 		try {
 			ServerBootstrap serverBootstrap = new ServerBootstrap();
+			final EventExecutorGroup eventExecutors = new DefaultEventExecutorGroup(100);
 			serverBootstrap.group(parentGroup, childGroup);
 			serverBootstrap.channel(NioServerSocketChannel.class);
 			serverBootstrap.option(ChannelOption.SO_BACKLOG, 128)
@@ -32,7 +35,7 @@ public class NettyServer {
 										protected void initChannel(SocketChannel ch)
 												throws Exception {
 											ch.pipeline().addLast(new DelimiterBasedFrameDecoder(Integer.MAX_VALUE,Delimiters.lineDelimiter()[0]));
-											ch.pipeline().addLast(new SimpleHandler());
+											ch.pipeline().addLast(eventExecutors, new SimpleHandler());
 										}
 									});
 			

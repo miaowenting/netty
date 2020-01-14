@@ -5,6 +5,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
 import java.nio.charset.Charset;
+import java.util.concurrent.*;
 
 /**
  * 测试类
@@ -13,17 +14,29 @@ import java.nio.charset.Charset;
  * @author wulei
  */
 public class SimpleHandler extends ChannelInboundHandlerAdapter{
+	static ThreadPoolExecutor threadPoolExecutor =
+			new ThreadPoolExecutor(10, 300, 2000, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(100));
 
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg)
 			throws Exception {
-		
+
+		threadPoolExecutor.execute(() -> {
+			// 业务处理逻辑代码省略
+			try {
+				TimeUnit.MILLISECONDS.sleep(100);
+			} catch (InterruptedException e) {
+				//
+			}
+		});
+
 		System.out.println("开始读取数据============");
 		if(msg instanceof ByteBuf){
 			ByteBuf req = (ByteBuf)msg;
 			String content = req.toString(Charset.defaultCharset());
 			System.out.println(content);
-			
+
+
 		}
 		
 		
