@@ -177,6 +177,13 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
     /**
      * 堆内存和直接内存(非堆内存)
      */
+    /**
+     * Netty内存池从实现上可以分为：堆外直接内存和堆内存。由于ByteBuf主要用于网络IO读写，所以使用堆外直接内存会减少一次从用户堆内存到
+     * 内核态的字节数组拷贝，所以性能更高。由于DirectByteBuf的创建成本比较高，因此如果要使用DirectByteBuf，需要配合内存池使用，否则性能
+     * 还不如HeapByteBuf。
+     * Netty默认的IO读写采用的都是内存池的堆外直接内存模式，如果用户需要额外使用ByteBuf，建议也采用内存池方式；如果不设计网络IO操作(只是纯粹的内存操作)，
+     * 可以使用堆内存池，这样内存的创建效率会更高一些。
+     */
     private final PoolArena<byte[]>[] heapArenas;
     private final PoolArena<ByteBuffer>[] directArenas;
     private final int tinyCacheSize;

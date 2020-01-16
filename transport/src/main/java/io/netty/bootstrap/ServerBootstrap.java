@@ -268,7 +268,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             }
 
             try {
-                // 将SocketChannel注册到WORK EventLoopGroup中，注册过程与服务端类似，此处不再讲解
+                // 将SocketChannel注册到WORK EventLoopGroup中，注册过程与服务端类似，此处不再讲解; 即NioEventLoop与SocketChannel绑定关系
                 childGroup.register(child).addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {

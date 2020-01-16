@@ -83,7 +83,7 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
 
     @Override
     public ChannelFuture register(Channel channel) {
-        // 首先使用next()在boss EventLoopGroup中选出下一个EventLoop，然后执行注册
+        // 首先使用next()在boss EventLoopGroup中选出下一个EventLoop，然后执行注册； 应该是work NioEventLoopGroup吧？
         return next().register(channel);
     }
 

@@ -67,6 +67,7 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
 
         @Override
         public EventExecutor next() {
+            // 递增，从0开始，到达数组边界时再从零开始，可以学习下
             return executors[Math.abs(idx.getAndIncrement() % executors.length)];
         }
     }
