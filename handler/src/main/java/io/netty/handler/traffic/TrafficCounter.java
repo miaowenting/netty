@@ -46,6 +46,7 @@ public class TrafficCounter {
 
     /**
      * Current written bytes
+     * 在流量整形中大量使用了原子类提升并发操作的安全性和性能
      */
     private final AtomicLong currentWrittenBytes = new AtomicLong();
 

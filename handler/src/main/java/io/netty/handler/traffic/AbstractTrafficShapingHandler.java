@@ -31,6 +31,24 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 流量整形
+ * 通过流量整形可以控制发送速度，它的控制原理是将待发送的消息封装成Task放入消息队列，等待执行时间到达后继续发送(具体实现见channelRead)，
+ * 但是如果业务发送线程不判断Channel的可写状态。就会一直不断增加task数量，把客户端撑爆，可能会导致OOM问题。
+ * 客户端示例代码如下：
+ * public void channelActive(ChannleHandlerContext ctx) {
+ *     scheduledExecuotorService.execute(() -> {
+ *         ByteBuf buf = null;
+ *         for (int i = 0; i< 10; i++) {
+ *             buf = Unpooled.copiedBuffer(ECHO_REQ, DELIMITER.getBytes());
+ *             SEQ.getAndAdd(buf.readableBytes());
+ *             // 此if不可省略
+ *             if(ctx.channel.isWriteable())
+ *                 ctx.write(buf);
+ *         }
+ *     })
+ * }
+ *
+ * 流量整形和流控的最大区别在于，流控会拒绝消息，流量整形不会拒绝和丢弃消息，无论接受量多大，它总能以接近恒定的速度发送消息，跟变压器的原理和功能类似
  * <p>AbstractTrafficShapingHandler allows to limit the global bandwidth
  * (see {@link GlobalTrafficShapingHandler}) or per session
  * bandwidth (see {@link ChannelTrafficShapingHandler}), as traffic shaping.
@@ -45,6 +63,8 @@ import java.util.concurrent.TimeUnit;
  * <li><tt>getTrafficCounter</tt> allows you to have access to the TrafficCounter and so to stop
  * or start the monitoring, to change the checkInterval directly, or to have access to its values.</li>
  * </ul>
+ *
+ * duplex 复式/双层
  */
 public abstract class AbstractTrafficShapingHandler extends ChannelDuplexHandler {
     private static final InternalLogger logger =
@@ -88,13 +108,15 @@ public abstract class AbstractTrafficShapingHandler extends ChannelDuplexHandler
 
     /**
      * Max delay in wait
+     * // default 15 s
      */
-    protected volatile long maxTime = DEFAULT_MAX_TIME; // default 15 s
+    protected volatile long maxTime = DEFAULT_MAX_TIME;
 
     /**
      * Delay between two performance snapshots
+     * // default 1 s
      */
-    protected volatile long checkInterval = DEFAULT_CHECK_INTERVAL; // default 1 s
+    protected volatile long checkInterval = DEFAULT_CHECK_INTERVAL;
 
     static final AttributeKey<Boolean> READ_SUSPENDED = AttributeKey
             .valueOf(AbstractTrafficShapingHandler.class.getName() + ".READ_SUSPENDED");
@@ -103,12 +125,18 @@ public abstract class AbstractTrafficShapingHandler extends ChannelDuplexHandler
 
     /**
      * Max time to delay before proposing to stop writing new objects from next handlers
+     * // default 4 s
      */
-    volatile long maxWriteDelay = 4 * DEFAULT_CHECK_INTERVAL; // default 4 s
+    volatile long maxWriteDelay = 4 * DEFAULT_CHECK_INTERVAL;
     /**
-     * Max size in the list before proposing to stop writing new objects from next handlers
+     * Max size in the list before proposing(计划、打算) to stop writing new objects from next handlers
+     * // default 4MB
+     * 此处很多参数都是用volatile进行修饰的，因为这些参数都提供了public的set方法，用户线程或者其他Channel对应的NioEventLoop线程可以
+     * 调用set方法修改maxWriteSize的值，在Channel中绑定的NioEventLoop会对maxWriteSize进行判断，业务线程修改了maxWriteSize， 如果它
+     * 不是volatile，则NioEventLoop可能会读取到脏数据。
+     *
      */
-    volatile long maxWriteSize = DEFAULT_MAX_SIZE; // default 4MB
+    volatile long maxWriteSize = DEFAULT_MAX_SIZE;
 
     /**
      * Rank in UserDefinedWritability (1 for Channel, 2 for Global TrafficShapingHandler).

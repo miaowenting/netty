@@ -21,6 +21,9 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 
 /**
  * Collection of method to handle objects that may implement {@link ReferenceCounted}.
+ * ReferenceCounted 是Netty中专门用于引用计数的接口：retain()方法对引用计数加1，release()方法对引用计数减1。
+ * 如果引用计数被减到0，则这个对象就将被显式的回收，此时再来访问该对象则会抛出IllegalReferenceCountException异常
+ * 也就是说ReferenceCounted是用来管理对象的生命周期的
  */
 public final class ReferenceCountUtil {
 

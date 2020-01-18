@@ -39,6 +39,20 @@ import static io.netty.util.internal.StringUtil.EMPTY_STRING;
 import static io.netty.util.internal.StringUtil.NEWLINE;
 import static io.netty.util.internal.StringUtil.simpleClassName;
 
+/**
+ * netty一般使用ResourceLeakDetector来检测bytebuf的是否泄漏（所谓的泄漏就是我们不使用该对象，但是其refCnt不为0，从而导致该bytebuf不能释放）
+ *
+ 1.如果我们想使用ResourceLeakDetector来检测，我们必须使用ByteBufAllocator来获取bytebuf，而且目前只支持堆外内存（池化和非池化）和堆内池化，但是堆内非池化不支持检测。
+
+ 2.ResourceLeakDetector检测的原理是我们每次使用ByteBufAllocator创建bytebuf会根据我们的泄漏检测级别来进行。如果是DISABLED则直接返回，
+   如果是小于PARANOID级别的则我们使用随机数来抽样代表每次创建是否需要reportLeak，
+ 3.最后我们需要创建一个DefaultResourceLeak对象，这个对象会存放在ConcurrentMap，key就是我们的DefaultResourceLeak 其是虚引用（我们知道我们的虚引用是指当引用对象被gc，
+   则该虚引用则会被加入一个队列对象
+   而我们所谓的泄漏是指我们的bytebuf对象被回收了但是其内部资源对象没有回收，导致即无法使用该内存且该内存也不会被回收进而导致内存泄漏。
+   内部对象存储数据一般是数组或者directBytebuffer），而value是LeakEntry，其只是简单的作为一个value，同时我们还获取我们的trackedHash=我们bytebuf的hash值。
+ 4.我们的reportLeak主要就是检测我们的logger是否可用，如果不可用我们的logger那就无法打印泄漏信息，那么我们需要清空我们的队列，如果logger可用则将虚引用取出来把该bytbuf的基本信息打印出来
+ * @param <T>
+ */
 public class ResourceLeakDetector<T> {
 
     private static final String PROP_LEVEL_OLD = "io.netty.leakDetectionLevel";
