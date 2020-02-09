@@ -185,11 +185,27 @@ TCP粘包导致的读半包问题
 
 ### 9 Netty内存池化管理
 
-#### 9.1 JEMalloc分配算法
+参考：
+
+`https://mp.weixin.qq.com/s/89P9ujogvvKGot9sB9XO4g`
+
+
+#### 9.1 PooledBufferAllocator
+
+
+#### 9.2 PoolThreadCache
+
+Netty自己实现了类似LocalThread的类来充当线程缓存
+
+PoolThreadLocalCache 继承自 FastThreadLocal
+
+
+#### 9.3 JEMalloc分配算法
 
 `https://www.jianshu.com/p/15304cd63175`
 
-#### 9.2 PoolArena
+
+#### 9.4 PoolArena
 
 Netty内存主要分为两种：DirectByteBuf 和 HeapByteBuf。Netty作为服务器架构技术，拥有大量的网络数据传输，当我们进行网络传输时，必须将数据拷贝至直接内存，合理利用好直接内存，
 能够显著提高性能。
@@ -239,7 +255,7 @@ PoolArena.allocate() 分配内存主要考虑先尝试从缓存中，然后再�
 
 4）若分配大于16m的内存, 则直接通过allocateHuge()从内存池外分配内存。
 
-#### 9.3 PoolChunkList
+#### 9.5 PoolChunkList
 
 对于在q050、q025、q000、qInit、q075这些PoolChunkList里申请内存的流程图如下：
 
@@ -251,9 +267,9 @@ PoolArena.allocate() 分配内存主要考虑先尝试从缓存中，然后再�
 
 保存一些空闲较大的内存，以便大内存的分配
 
-#### 9.4 PoolChunk
+#### 9.6 PoolChunk
 
-#### 9.5 PoolSubpage
+#### 9.7 PoolSubpage
 
 Netty中大于8k的内存都是通过PoolChunk来分配的，小于8k的内存是通过PoolSubpage分配的。当申请小于8k的内存时，会分配一个8k的叶子节点，若用不完的话，存在很大的浪费，所以通过
 
@@ -320,13 +336,11 @@ Netty使用一个long整型表示在 PoolSubpage 中的分配结果，高32位�
 ![avatar](image/PoolSubpage的init及allocate流程图.png)
 
 
-#### 9.6 PoolThreadCache
+#### 9.8 DirectByteBuffer
 
-Netty自己实现了类似LocalThread的类来充当线程缓存
+我们知道, 在使用IO传输数据时, 首先会将数据传输到堆外直接内存中, 然后才通过网络发送出去。这样的话, 数据多了次中间copy, 能否不经过copy而直接将数据发送出去呢, 其实是可以的, 存放的位置就是本文要讲的主角:DirectByteBuffer 。
 
-PoolThreadLocalCache 继承自 FastThreadLocal
-
-#### 9.7 DirectByteBuffer
+JVM内存主要分为heap内存和堆外内存(一般我们也会称呼为直接内存), heap内存我们不用care, jvm能自动帮我们管理, 而堆外内存回收不受JVM GC控制, 因此, 堆外内存使用必须小心。
 
 
 

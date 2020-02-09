@@ -20,6 +20,7 @@ public class ClientConnectionPoolLeakage {
     /**
      * 错误的客户端线程模型
      * 采用BIO模式来调用NIO通信框架
+     * 从异常日志和线程资源占用看，导致内存泄漏的原因是应用创建了大量的EventLoopGroup线程池
      */
     private static void initClientPool(int poolSize) throws Exception {
         // init client pool
